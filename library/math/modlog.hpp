@@ -1,0 +1,39 @@
+#pragma once
+template <typename T>
+T inv(T a, T p) {
+  T b = p, x = 1, y = 0;
+  while (a) {
+    T q = b / a;
+    swap(a, b %= a);
+    swap(x, y -= q * x);
+  }
+  if(b != 1) return -1;
+  return y < 0 ? y + p : y;
+}
+//a^x == b(mod p)を求める
+int64_t mod_log(int64_t a, int64_t b, int64_t p) {
+  if ((a %= p) < 0) a += p;
+  if ((b %= p) < 0) b += p;
+  int64_t f, g, r = 1 % p;
+  for (f = 0; (g = gcd(a, p)) > 1; ++f) {
+    if (b % g) return (r == b) ? f : -1;
+    b /= g;
+    p /= g;
+    (r *= (a / g)) %= p;
+  }
+  if (p == 1) return f;
+  int64_t ir = inv(r, p);
+  (b *= ir) %= p;
+  int64_t k = 0, ak = 1;
+  unordered_map<int64_t, int64_t> baby;
+  for (; k * k < p; ++k) {
+    if(baby.find(ak) == baby.end()) baby[ak] = k;
+    (ak *= a) %= p;
+  }
+  int64_t iak = inv(ak, p);
+  for (int64_t i = 0; i < k; ++i) {
+    if (baby.find(b) != baby.end()) return f + i * k + baby[b];
+    (b *= iak) %= p;
+  }
+  return -1;
+}

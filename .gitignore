@@ -1,0 +1,11 @@
+# Track only the competitive programming library and this configuration.
+/*
+!/.gitignore
+!/library/
+
+# macOS metadata and generated files.
+.DS_Store
+*.o
+*.out
+*.gch
+*.dSYM/
