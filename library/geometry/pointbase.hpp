@@ -51,3 +51,53 @@ struct PointBase {
         return os << p.x << " " << p.y;
     }
 };
+
+namespace geometry_detail {
+// 積同士が近いときの桁落ちをFMAで補正する。整数では元の拡張型を使う。
+template <typename T>
+auto cross_value(const PointBase<T>& a, const PointBase<T>& b) {
+    if constexpr (is_floating_point_v<T>) {
+        T p = a.y * b.x;
+        return fma(a.x, b.y, -p) + fma(-a.y, b.x, p);
+    } else {
+        return cross(a, b);
+    }
+}
+// 方向の符号にはEPSを使わず、異なる方向を同一視しない。
+template <typename T>
+int cross_sign(const PointBase<T>& a, const PointBase<T>& b) {
+    auto c = cross_value(a, b);
+    return c > 0 ? 1 : c < 0 ? -1 : 0;
+}
+// 2本の差分ベクトルの外積。引き算で失われた下位桁も加える。
+template <typename T>
+auto difference_cross(const PointBase<T>& a, const PointBase<T>& b,
+                      const PointBase<T>& c, const PointBase<T>& d) {
+    if constexpr (is_floating_point_v<T>) {
+        using P = PointBase<long double>;
+        auto error = [](const P& x, const P& y, const P& delta) {
+            P v = x - delta;
+            return (x - (delta + v)) + (v - y);
+        };
+        P pa(a.x, a.y), pb(b.x, b.y), pc(c.x, c.y), pd(d.x, d.y);
+        P u = pb - pa, v = pd - pc;
+        P ue = error(pb, pa, u), ve = error(pd, pc, v);
+        return cross_value(u, v) + cross_value(u, ve)
+             + cross_value(ue, v) + cross_value(ue, ve);
+    } else {
+        return cross(difference(b, a), difference(d, c));
+    }
+}
+template <typename T>
+auto line_cross(const PointBase<T>& a, const PointBase<T>& b,
+                const PointBase<T>& p) {
+    return difference_cross(a, b, a, p);
+}
+// 頂点の向きは、差分を作るときの丸め誤差も補正して判定する。
+template <typename T>
+int orientation_sign(const PointBase<T>& a, const PointBase<T>& b,
+                     const PointBase<T>& c) {
+    auto v = line_cross(a, b, c);
+    return v > 0 ? 1 : v < 0 ? -1 : 0;
+}
+}

@@ -41,8 +41,7 @@ vector<int> convex_hull(const vector<PointBase<T>>& XY,
     if (n <= 2) return I;
     bool collinear = true;
     for (int k = 1; k + 1 < n; k++) {
-        if (cross(difference(XY[I.back()], XY[I[0]]),
-                  difference(XY[I[k]], XY[I[0]])) != 0) {
+        if (geometry_detail::orientation_sign(XY[I[0]], XY[I.back()], XY[I[k]]) != 0) {
             collinear = false;
             break;
         }
@@ -57,8 +56,7 @@ vector<int> convex_hull(const vector<PointBase<T>>& XY,
         for (int t = 0; t < n; t++) {
             int k = I[upper ? n - 1 - t : t];
             while (H.size() >= 2) {
-                auto d = cross(difference(XY[H.back()], XY[H[H.size() - 2]]),
-                               difference(XY[k], XY[H.back()]));
+                int d = geometry_detail::orientation_sign(XY[H[H.size() - 2]], XY[H.back()], XY[k]);
                 if constexpr (allow_180) {
                     if (d >= 0) break;
                 } else {
@@ -262,11 +260,15 @@ Polygon convex_cut(const Polygon& U, Line l) {
 // 符号付き面積。反時計回りで正、時計回りで負。
 long double area(const Polygon& p) {
     if (p.size() < 3) return 0;
-    Real A = 0;
-    // 1頂点を原点に移し、大きな絶対座標同士の積による桁落ちを避ける。
-    for (int i = 1; i + 1 < (int)p.size(); i++)
-        A += geometry_detail::cross_value(p[i] - p[0], p[i + 1] - p[0]);
-    return A * 0.5L;
+    Real A = 0, correction = 0;
+    // 1頂点を基準にし、座標差分・外積・面積の加算それぞれの丸め誤差を補正する。
+    for (int i = 1; i + 1 < (int)p.size(); i++) {
+        Real value = geometry_detail::line_cross(p[0], p[i], p[i + 1]);
+        Real next = A + value;
+        correction += abs(A) >= abs(value) ? (A - next) + value : (value - next) + A;
+        A = next;
+    }
+    return (A + correction) * 0.5L;
 }
 
 // 多角形と円の共通部分の符号付き面積。

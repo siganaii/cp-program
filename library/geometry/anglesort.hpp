@@ -11,8 +11,9 @@ vector<int> angle_sort(vector<PointBase<T>>& P) {
         else if ((P[i].y < 0) || (P[i].y == 0 && P[i].x > 0)) lower.emplace_back(i);
         else upper.emplace_back(i);
     }
-    sort(all(lower), [&](auto& i, auto& j) { return cross(P[i],P[j]) > 0; });
-    sort(all(upper), [&](auto& i, auto& j) { return cross(P[i],P[j]) > 0; });
+    auto comp = [&](int i, int j) { return geometry_detail::cross_sign(P[i], P[j]) > 0; };
+    sort(all(lower), comp);
+    sort(all(upper), comp);
     auto& I = lower;
     I.insert(I.end(), origin.begin(),origin.end());
     I.insert(I.end(), upper.begin(),upper.end());

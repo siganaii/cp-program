@@ -33,7 +33,7 @@ struct IncrementalConvexHull_Lower {
         }
         auto a = *it;
         auto b = left.back();
-        auto det = cross(difference(b, a), difference(p, a));
+        int det = geometry_detail::orientation_sign(a, b, p);
         if (strict && det > 0) break;
         if (!strict && det >= 0) break;
         left.emplace_back(a);
@@ -52,7 +52,7 @@ struct IncrementalConvexHull_Lower {
         }
         auto a = right.back();
         auto b = *it;
-        auto det = cross(difference(a, p), difference(b, p));
+        int det = geometry_detail::orientation_sign(p, a, b);
         if (strict && det > 0) break;
         if (!strict && det >= 0) break;
         right.emplace_back(b);
@@ -97,7 +97,7 @@ struct IncrementalConvexHull_Lower {
     }
     auto l = prev(r);
     auto p1 = *l, p2 = *r;
-    auto det = cross(difference(p, p1), difference(p2, p1));
+    int det = geometry_detail::orientation_sign(p1, p, p2);
     if (det == 0) return 0;
     return (det > 0 ? -1 : 1);
   }
@@ -130,10 +130,7 @@ struct Incremental_ConvexHull {
     if constexpr (is_floating_point_v<T>) {
       // 初めに追加した点を原点にする。上側凸包では座標が反転している。
       P origin = upper ? -area_origin : area_origin;
-      a -= origin;
-      b -= origin;
-      C p = a.y * b.x;
-      return fma(a.x, b.y, -p) + fma(-a.y, b.x, p);
+      return geometry_detail::line_cross(origin, a, b);
     } else {
       return cross(a, b);
     }

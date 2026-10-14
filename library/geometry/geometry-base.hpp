@@ -17,52 +17,9 @@ bool equals(const PointBase<T>& a, const PointBase<U>& b) {
     return equals(a.x, b.x) && equals(a.y, b.y);
 }
 namespace geometry_detail {
-// 方向の符号にはEPSを使わず、FMAで積の丸め誤差を補正する。
-template <typename T>
-int cross_sign(const PointBase<T>& a, const PointBase<T>& b) {
-    if constexpr (is_floating_point_v<T>) {
-        T p = a.y * b.x;
-        T c = fma(a.x, b.y, -p) + fma(-a.y, b.x, p);
-        return c > 0 ? 1 : c < 0 ? -1 : 0;
-    } else {
-        auto c = cross(a, b);
-        return c > 0 ? 1 : c < 0 ? -1 : 0;
-    }
-}
 Real dot_error(const Point& a, const Point& b) {
     return 16 * numeric_limits<Real>::epsilon()
         * (abs(a.x * b.x) + abs(a.y * b.y));
-}
-// 積同士が近いときの桁落ちをFMAで補正する。
-Real cross_value(const Point& a, const Point& b) {
-    Real p = a.y * b.x;
-    return fmal(a.x, b.y, -p) + fmal(-a.y, b.x, p);
-}
-// 2本の差分ベクトルの外積。引き算で失われた下位桁も加える。
-Real difference_cross(const Point& a, const Point& b,
-                      const Point& c, const Point& d) {
-    auto error = [](const Point& x, const Point& y, const Point& d) {
-        Point v = x - d;
-        return (x - (d + v)) + (v - y);
-    };
-    Point u = b - a, v = d - c;
-    Point ue = error(b, a, u), ve = error(d, c, v);
-    return cross_value(u, v) + cross_value(u, ve)
-         + cross_value(ue, v) + cross_value(ue, ve);
-}
-Real line_cross(const Point& a, const Point& b, const Point& p) {
-    return difference_cross(a, b, a, p);
-}
-// 頂点の向きは、差分を作るときの丸め誤差も補正して判定する。
-template <typename T>
-int orientation_sign(const PointBase<T>& a, const PointBase<T>& b,
-                     const PointBase<T>& c) {
-    if constexpr (is_floating_point_v<T>) {
-        Real v = line_cross(Point(a.x, a.y), Point(b.x, b.y), Point(c.x, c.y));
-        return v > 0 ? 1 : v < 0 ? -1 : 0;
-    } else {
-        return cross_sign(difference(b, a), difference(c, a));
-    }
 }
 Real radial_tolerance(Real a, Real b) {
     return EPS + 16 * numeric_limits<Real>::epsilon() * max(abs(a), abs(b));
