@@ -51,17 +51,13 @@ FormalPowerSeries<mint> NaiveRangeRational(
 ) {
     vector<mint> coef(r);
     mint inv_q0 = Q[0].inverse();
-
     for (int i = 0; i < r; i++) {
         mint s = fps_get(P, i);
-
         for (int j = 1; j < (int)Q.size() && j <= i; j++) {
             s -= Q[j] * coef[i - j];
         }
-
         coef[i] = s * inv_q0;
     }
-
     FormalPowerSeries<mint> res;
     for (long long i = l; i < r; i++) {
         res.push_back(coef[i]);
