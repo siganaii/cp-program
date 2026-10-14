@@ -16,10 +16,11 @@ Lines tangent(Circle c1, Circle c2) {
         // 半径0の円では内公接線と外公接線が一致する。
         if (s == 1 && c2.r == 0) continue;
         Real r = c1.r + s * c2.r;
-        if (r - d >= EPS) continue;
+        Real tol = geometry_detail::radial_tolerance(r, d);
+        if (r - d > tol) continue;
         Real h = clamp(r / d, Real(0), Real(1));
         // 二乗値ではなく、距離と半径の差を比較する。
-        if (abs(d - r) < EPS) {
+        if (abs(d - r) <= tol) {
             Point p = c1.p + u * c1.r;
             ret.emplace_back(p, p + v);
         } 

@@ -2,32 +2,28 @@
 #include "library/geometry/distance.hpp"
 #include "library/geometry/intersect.hpp"
 Point crosspoint(const Line &l, const Line &m) {
-    Real A = cross(l.b - l.a, m.b - m.a);
-    Real B = cross(l.b - l.a, l.b - m.a);
-    if(equals(abs(A), 0.0) && equals(abs(B), 0.0)) return m.a;
-    return (m.a * (A - B) + m.b * B) / A;
+    Point d = l.b - l.a, e = m.b - m.a;
+    if (parallel(l, m)) {
+        assert(geometry_detail::line_side(l.a, l.b, m.a) == 0);
+        return m.a;
+    }
+    Real t = geometry_detail::cross_value(m.a - l.a, e)
+           / geometry_detail::cross_value(d, e);
+    return {fmal(d.x, t, l.a.x), fmal(d.y, t, l.a.y)};
 }
 Point crosspoint(const Segment &l, const Segment &m) {
     return crosspoint(Line(l), Line(m));
 }
 pair<Point,Point> crosspoint(const Circle &c, const Line &l) {
-    Point pr = projection(l, c.p);
-    Point e = (l.b - l.a) / abs(l.b - l.a);
-    if(equals(distance(l, c.p), c.r)) return {pr, pr};
-    Real base = sqrt(c.r * c.r - norm(pr - c.p));
-    return {pr - e * base, pr + e * base};
+    auto [count, ps] = geometry_detail::circle_line_intersections(c, l);
+    assert(count > 0);
+    return {ps[0], ps[count == 2 ? 1 : 0]};
 }
 pair<Point, Point> crosspoint(const Circle &c, const Segment &l) {
-    auto [count, ts] = geometry_detail::circle_segment_parameters(c, l);
+    auto [count, ps] = geometry_detail::circle_segment_intersections(c, l);
     // 交点が存在することを要求する。1点の場合は同じ点を2回返す。
     assert(count > 0);
-    Point d = l.b - l.a;
-    auto at = [&](Real t) {
-        if (t == 0) return l.a;
-        if (t == 1) return l.b;
-        return l.a + d * t;
-    };
-    return {at(ts[0]), at(ts[count == 2 ? 1 : 0])};
+    return {ps[0], ps[count == 2 ? 1 : 0]};
 }
 pair<Point,Point> crosspoint(const Circle &c1,const Circle &c2) {
     // 交点が存在することを要求する。半径0の円は1点として扱う。
@@ -41,11 +37,13 @@ pair<Point,Point> crosspoint(const Circle &c1,const Circle &c2) {
     }
     Real d = abs(c1.p - c2.p);
     assert(d > 0);
-    Real x = (c1.r * c1.r + d * d - c2.r * c2.r) / (2 * c1.r * d);
-    if (abs(x) > 1) x = (x > 0 ? 1.0 : -1.0);
-    Real a = acos(x);
-    Real t = atan2(c2.p.imag() - c1.p.imag(), c2.p.real() - c1.p.real());
-    Point p1 = c1.p + Point(cos(t + a) * c1.r, sin(t + a) * c1.r);
-    Point p2 = c1.p + Point(cos(t - a) * c1.r, sin(t - a) * c1.r);
-    return {p1, p2};
+    // 半径の二乗同士を引かず、中心線上の距離を直接求める。
+    Real a = d * 0.5L + ((c1.r - c2.r) / d) * (c1.r * 0.5L + c2.r * 0.5L);
+    a = clamp(a, -c1.r, c1.r);
+    Real h = sqrtl(max(Real(0), (c1.r - a) * (c1.r + a)));
+    Point e = (c2.p - c1.p) / d, n(-e.y, e.x);
+    Point foot = c1.p + e * a;
+    int relation = intersect(c1, c2);
+    if (relation == 1 || relation == 3) return {foot, foot};
+    return {foot + n * h, foot - n * h};
 }

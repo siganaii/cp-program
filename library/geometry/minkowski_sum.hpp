@@ -17,15 +17,7 @@ vector<PointBase<T>> minkowski_sum(vector<PointBase<T>> A, vector<PointBase<T>> 
     if (A.empty() || B.empty()) return {};
     using P = PointBase<T>;
     auto turn = [](const auto& u, const auto& v) {
-        auto c = cross(u, v);
-        if constexpr (is_floating_point_v<T>) {
-            // 平行な辺を丸め誤差で逆順にしたり、余分な頂点を残したりしない。
-            auto tol = EPS + 16 * numeric_limits<T>::epsilon()
-                * (abs(u.x * v.y) + abs(u.y * v.x));
-            return c > tol ? 1 : c < -tol ? -1 : 0;
-        } else {
-            return c > 0 ? 1 : c < 0 ? -1 : 0;
-        }
+        return geometry_detail::cross_sign(u, v);
     };
     auto normalize = [&](vector<P>& V) {
         V.erase(unique(V.begin(), V.end()), V.end());
@@ -87,7 +79,7 @@ vector<PointBase<T>> minkowski_sum(vector<PointBase<T>> A, vector<PointBase<T>> 
             P b = ANS[ANS.size() - 1];
             if (turn(difference(b, a), difference(p, a)) != 0) break;
             auto d = dot(difference(b, a), difference(p, b));
-            if (d < 0 && !equals(d, 0)) break;
+            if (d < 0) break;
             ANS.pop_back();
         }
         ANS.emplace_back(p);

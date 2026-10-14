@@ -16,14 +16,55 @@ template <class T, class U>
 bool equals(const PointBase<T>& a, const PointBase<U>& b) {
     return equals(a.x, b.x) && equals(a.y, b.y);
 }
+namespace geometry_detail {
+// 外積・内積の符号には、距離のEPSではなく演算の丸め誤差を使う。
+template <typename T>
+int cross_sign(const PointBase<T>& a, const PointBase<T>& b) {
+    auto c = cross(a, b);
+    if constexpr (is_floating_point_v<T>) {
+        auto tol = 16 * numeric_limits<T>::epsilon()
+            * (abs(a.x * b.y) + abs(a.y * b.x));
+        return c > tol ? 1 : c < -tol ? -1 : 0;
+    } else {
+        return c > 0 ? 1 : c < 0 ? -1 : 0;
+    }
+}
+Real dot_error(const Point& a, const Point& b) {
+    return 16 * numeric_limits<Real>::epsilon()
+        * (abs(a.x * b.x) + abs(a.y * b.y));
+}
+// 積同士が近いときの桁落ちをFMAで補正する。
+Real cross_value(const Point& a, const Point& b) {
+    Real p = a.y * b.x;
+    return fmal(a.x, b.y, -p) + fmal(-a.y, b.x, p);
+}
+Real radial_tolerance(Real a, Real b) {
+    return EPS + 16 * numeric_limits<Real>::epsilon() * max(abs(a), abs(b));
+}
+// 点と直線の位置関係。外積を方向ベクトルの長さで割り、距離で比較する。
+int line_side(const Point& a, const Point& b, const Point& p) {
+    Point d = b - a, v = p - a;
+    Real len = abs(d);
+    if (len == 0) return 0;
+    Real h = cross_value(d, v) / len;
+    Real tol = EPS + 16 * numeric_limits<Real>::epsilon()
+        * (abs(d.x * v.y) + abs(d.y * v.x)) / len;
+    return h > tol ? 1 : h < -tol ? -1 : 0;
+}
+}
 Real radian_to_degree(Real r) { return (r * 180.0 / PI); }
 Real degree_to_radian(Real d) { return (d * PI / 180.0); }
 int ccw(const Point &a,Point b,Point c) {
-    b = b - a, c = c - a;
-    if(cross(b,c) > EPS) return +1;  //反時計回り
-    if(cross(b,c) < -EPS) return -1; //時計回り
-    if(dot(b,c) < -EPS) return +2;      //b-a-c
-    if(norm(b) < norm(c)) return -2; //a-b-c
+    Point d = b - a;
+    Real len = abs(d);
+    if (len == 0) return abs(c - a) <= EPS ? 0 : -2;
+    int side = geometry_detail::line_side(a, b, c);
+    if (side > 0) return +1; // 反時計回り
+    if (side < 0) return -1; // 時計回り
+    d /= len;
+    Point from_a = c - a, from_b = c - b;
+    if (dot(d, from_a) < -EPS - geometry_detail::dot_error(d, from_a)) return +2; //b-a-c
+    if (dot(d, from_b) > EPS + geometry_detail::dot_error(d, from_b)) return -2; //a-b-c
     return 0;                        //a-c-b
 }
 // a-bベクトルとb-cベクトルのなす角
@@ -46,9 +87,14 @@ struct Line {
     Line(Point a, Point b) : a(a), b(b) {}
     Line(Real A, Real B, Real C) // Ax + By = C
     {
-        if(equals(A,0)) a = Point(0, C / B), b = Point(1, C / B);
-        else if(equals(B,0)) a = Point(C / A, 0), b = Point(C / A, 1);
-        else if(equals(C,0)) a = Point(0, C / B), b = Point(1, (C - A) / B);
+        // 係数の一律な拡大・縮小で直線を変えないため、ゼロは厳密に判定する。
+        assert(A != 0 || B != 0);
+        if(A == 0) a = Point(0, C / B), b = Point(1, C / B);
+        else if(B == 0) a = Point(C / A, 0), b = Point(C / A, 1);
+        else if(C == 0) {
+            Real scale = max(abs(A), abs(B));
+            a = Point(0, 0), b = Point(B / scale, -A / scale);
+        }
         else a = Point(0, C / B), b = Point(C / A, 0);
     }
     friend ostream &operator<<(ostream &os, Line &p) {
@@ -68,10 +114,11 @@ struct Ray : Line {
     Ray(Point a, Point b) : Line(a, b) {}
 };
 bool parallel(const Line &a, const Line &b) {
-    return equals(cross(a.b - a.a, b.b - b.a),0);
+    return geometry_detail::cross_sign(a.b - a.a, b.b - b.a) == 0;
 }
 bool orthogonal(const Line &a, const Line &b) {
-    return equals(dot(a.a - a.b, b.a - b.b),0);
+    Point d = a.b - a.a, e = b.b - b.a;
+    return abs(dot(d, e)) <= geometry_detail::dot_error(d, e);
 }
 Point projection(const Line &l, const Point &p) {
     Real t = dot(p - l.a, l.a - l.b) / norm(l.a - l.b);

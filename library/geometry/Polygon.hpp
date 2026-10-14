@@ -8,10 +8,9 @@ template <typename T>
 bool is_convex(const vector<PointBase<T>>& p) {
     int n = p.size(), dir = 0;
     for (int i = 0; i < n; i++) {
-        auto c = cross(difference(p[(i + 1) % n], p[i]),
-                       difference(p[(i + 2) % n], p[(i + 1) % n]));
-        if (equals(c, 0)) continue;
-        int d = c > 0 ? 1 : -1;
+        int d = geometry_detail::cross_sign(difference(p[(i + 1) % n], p[i]),
+                                            difference(p[(i + 2) % n], p[(i + 1) % n]));
+        if (d == 0) continue;
         if (dir != 0 && dir != d) return false;
         dir = d;
     }
@@ -102,9 +101,9 @@ int contains(const Polygon& Q, const Point& p) {
     for (int i = 0; i < (int)Q.size(); i++) {
         Point a = Q[i] - p, b = Q[(i + 1) % Q.size()] - p;
         if (a.imag() > b.imag()) swap(a, b);
-        if (equals(cross(a, b), 0) && dot(a, b) <= 0) return ON;
+        if (ccw(Q[i], Q[(i + 1) % Q.size()], p) == 0) return ON;
         // 境界判定以外では高さの基準を0に統一し、頂点を二重に数えない。
-        if (a.imag() <= 0 && 0 < b.imag() && cross(a, b) < 0)
+        if (a.imag() <= 0 && 0 < b.imag() && geometry_detail::cross_value(a, b) < 0)
             in = !in;
     }
     return in ? IN : OUT;
@@ -118,28 +117,24 @@ int convex_contains(const Polygon& Q, const Point& p) {
     if (n == 0) return OUT;
     if (n == 1) return equals(Q[0], p) ? ON : OUT;
     auto on_segment = [&](const Point& a, const Point& b) {
-        return equals(cross(b - a, p - a), 0)
-            && dot(p - a, p - b) <= 0;
+        return ccw(a, b, p) == 0;
     };
     if (n == 2) return on_segment(Q[0], Q[1]) ? ON : OUT;
-    auto sgn = [](Real x) {
-        return equals(x, 0) ? 0 : (x > 0 ? 1 : -1);
-    };
-    int dir = sgn(cross(Q[1] - Q[0], Q.back() - Q[0]));
+    int dir = geometry_detail::cross_sign(Q[1] - Q[0], Q.back() - Q[0]);
     if (dir == 0) return contains(Q, p);
 
     auto side = [&](const Point& a, const Point& b) {
-        return dir * sgn(cross(a - Q[0], b - Q[0]));
+        return dir * geometry_detail::line_side(Q[0], a, b);
     };
     int a = side(Q[1], p), b = side(Q.back(), p);
     if (a < 0 || b > 0) return OUT;
     if (a == 0) {
-        if (equals(cross(Q[1] - Q[0], Q[2] - Q[0]), 0))
+        if (geometry_detail::cross_sign(Q[1] - Q[0], Q[2] - Q[0]) == 0)
             return contains(Q, p);
         return on_segment(Q[0], Q[1]) ? ON : OUT;
     }
     if (b == 0) {
-        if (equals(cross(Q.back() - Q[0], Q[n - 2] - Q[0]), 0))
+        if (geometry_detail::cross_sign(Q.back() - Q[0], Q[n - 2] - Q[0]) == 0)
             return contains(Q, p);
         return on_segment(Q[0], Q.back()) ? ON : OUT;
     }
@@ -150,7 +145,7 @@ int convex_contains(const Polygon& Q, const Point& p) {
         if (side(Q[m], p) >= 0) l = m;
         else r = m;
     }
-    int s = dir * sgn(cross(Q[r] - Q[l], p - Q[l]));
+    int s = dir * geometry_detail::line_side(Q[l], Q[r], p);
     return s < 0 ? OUT : s == 0 ? ON : IN;
 }
 
@@ -172,8 +167,8 @@ void merge_segments(vector<Segment>& segs) {
         vector<Segment> group;
         for (int j = i; j < (int)S.size(); j++) {
             if (used[j]) continue;
-            if (!equals(cross(d, S[j].b - S[j].a), 0)) continue;
-            if (!equals(cross(d, S[j].a - S[i].a), 0)) continue;
+            if (geometry_detail::cross_sign(d, S[j].b - S[j].a) != 0) continue;
+            if (geometry_detail::line_side(S[i].a, S[i].b, S[j].a) != 0) continue;
             used[j] = true;
             group.push_back(S[j]);
         }
@@ -225,7 +220,7 @@ vector<vector<int>> segment_arrangement(vector<Segment>& segs,
         for (int j = i + 1; j < N; j++) {
             Point p1 = segs[i].b - segs[i].a;
             Point p2 = segs[j].b - segs[j].a;
-            if (cross(p1, p2) == 0) continue;
+            if (geometry_detail::cross_sign(p1, p2) == 0) continue;
             if (intersect(segs[i], segs[j])) {
                 Point p = crosspoint(segs[i], segs[j]);
                 ps.push_back(p);
@@ -262,10 +257,10 @@ Polygon convex_cut(const Polygon& U, Line l) {
     for (int i = 0; i < (int)U.size(); i++) {
         const Point& now = U[i];
         const Point& nxt = U[(i + 1) % U.size()];
-        auto cf = cross(l.a - now, l.b - now);
-        auto cs = cross(l.a - nxt, l.b - nxt);
-        if (sign(cf) >= 0) ret.emplace_back(now);
-        if (sign(cf) * sign(cs) < 0)
+        int cf = geometry_detail::line_side(l.a, l.b, now);
+        int cs = geometry_detail::line_side(l.a, l.b, nxt);
+        if (cf >= 0) ret.emplace_back(now);
+        if (cf * cs < 0)
             ret.emplace_back(crosspoint(Line(now, nxt), l));
     }
     return ret;
@@ -288,16 +283,16 @@ long double area(const Polygon& p, const Circle& c) {
     Circle origin(Point(0, 0), c.r);
     for (int i = 0; i < (int)p.size(); i++) {
         Point a = p[i] - c.p, b = p[(i + 1) % p.size()] - c.p;
-        Point d = b - a;
         if (a == b) continue;
-        auto [count, ts] = geometry_detail::circle_segment_parameters(origin, Segment(a, b));
-        array<Real, 4> cuts{};
-        for (int j = 0; j < count; j++) cuts[j + 1] = ts[j];
-        cuts[count + 1] = 1;
+        auto [count, ps] = geometry_detail::circle_segment_intersections(origin, Segment(a, b));
+        array<Point, 4> cuts{};
+        cuts[0] = a;
+        for (int j = 0; j < count; j++) cuts[j + 1] = ps[j];
+        cuts[count + 1] = b;
         for (int j = 0; j <= count; j++) {
             if (cuts[j] == cuts[j + 1]) continue;
-            Point u = a + d * cuts[j], v = a + d * cuts[j + 1];
-            Point mid = a + d * ((cuts[j] + cuts[j + 1]) * 0.5L);
+            Point u = cuts[j], v = cuts[j + 1];
+            Point mid = (u + v) * 0.5L;
             if (norm(mid) <= c.r * c.r) A += cross(u, v);
             else A += c.r * c.r * atan2l(cross(u, v), dot(u, v));
         }
