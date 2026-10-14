@@ -32,7 +32,10 @@ Lines tangent(Circle c1, Circle c2) {
         // 二乗値ではなく、距離と半径の差を比較する。
         if (abs(d - r) <= tol) {
             Point p = c1.p + u * c1.r;
-            ret.emplace_back(p, p + v);
+            // 大きい座標でも方向ベクトルが丸めで消えない長さを使う。
+            Real step = max({Real(1), abs(p.x), abs(p.y)});
+            Point q(fmal(v.x, step, p.x), fmal(v.y, step, p.y));
+            ret.emplace_back(p, q);
         } 
         else {
             Point uu = u * h, vv = v * sqrtl(max(Real(0), (1 - h) * (1 + h)));

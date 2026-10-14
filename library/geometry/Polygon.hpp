@@ -273,7 +273,7 @@ long double area(const Polygon& p) {
 
 // 多角形と円の共通部分の符号付き面積。
 // 多角形が反時計回りで正、時計回りで負。
-// 各辺を交点で高々3区間に分ける。再帰を使わず O(N)。
+// 各辺を円の内外で高々3区間に分ける。再帰を使わず O(N)。
 long double area(const Polygon& p, const Circle& c) {
     if (p.size() < 3 || c.r == 0) return 0;
     bool inside = true;
@@ -292,12 +292,9 @@ long double area(const Polygon& p, const Circle& c) {
             ? (A - next) + value : (value - next) + A;
         A = next;
     };
-    auto on_circle = [&](Point v) {
-        Real len = abs(v);
-        return len == 0 ? v : v * (c.r / len);
-    };
-    Point reference = p[0] - c.p;
-    if (abs(reference) > c.r) reference = on_circle(reference);
+    Point reference = p[0];
+    Point offset = reference - c.p;
+    if (abs(offset) > c.r) reference = c.p + offset * (c.r / abs(offset));
     auto arc_remainder = [](Real theta) {
         if (abs(theta) >= 0.1L) return theta - sinl(theta);
         // 小さい角度でも theta - sin(theta) の有効桁を失わないようにする。
@@ -308,28 +305,64 @@ long double area(const Polygon& p, const Circle& c) {
         }
         return sum;
     };
-    Circle origin(Point(0, 0), c.r);
     for (int i = 0; i < (int)p.size(); i++) {
-        Point a = p[i] - c.p, b = p[(i + 1) % p.size()] - c.p;
+        const Point& a = p[i];
+        const Point& b = p[(i + 1) % p.size()];
         if (a == b) continue;
-        auto [count, ps] = geometry_detail::circle_segment_intersections(origin, Segment(a, b));
-        array<Point, 4> cuts{};
-        cuts[0] = a;
-        for (int j = 0; j < count; j++) cuts[j + 1] = ps[j];
-        cuts[count + 1] = b;
-        for (int j = 0; j <= count; j++) {
-            if (cuts[j] == cuts[j + 1]) continue;
-            Point u = cuts[j], v = cuts[j + 1];
-            Point mid = (u + v) * 0.5L;
-            if (abs(mid) <= c.r) {
-                add(geometry_detail::cross_value(u - reference, v - reference));
-            } else {
-                Real theta = atan2l(geometry_detail::cross_value(u, v), dot(u, v));
-                Point a = on_circle(u), b = on_circle(v);
-                // 円外の部分は円弧に写す。近い基準点からの三角形と弓形に分ける。
-                add(geometry_detail::cross_value(a - reference, b - reference));
-                add(c.r * c.r * arc_remainder(theta));
-            }
+        Point u = a - c.p, v = b - c.p, d = b - a;
+        Real la = abs(u), lb = abs(v), len = abs(d);
+        // K は基準点から見た三角形の符号付き面積の2倍。
+        Real K = geometry_detail::line_cross(a, b, reference);
+        if (la <= c.r && lb <= c.r) {
+            add(K);
+            continue;
+        }
+        // R = reference - c.p として、H = cross(u, v), X = cross(u, R), Y = cross(R, v)。
+        Real H = geometry_detail::line_cross(a, b, c.p);
+        Real X = geometry_detail::difference_cross(c.p, a, c.p, reference);
+        Real Y = geometry_detail::difference_cross(c.p, reference, c.p, b);
+        auto arc = [&](Real theta) { add(c.r * c.r * arc_remainder(theta)); };
+        auto outside = [&]() {
+            Real sa = c.r / la, sb = c.r / lb;
+            // 拡大率から1を引かず、半径との差から補正項を求める。
+            Real da = (c.r - la) / la, db = (c.r - lb) / lb;
+            // 円周に写した端点と基準点の外積を、元の座標の外積で展開する。
+            add(sa * sb * K);
+            add(sa * db * X);
+            add(da * sb * Y);
+            arc(atan2l(H, dot(u, v)));
+        };
+        Real h = H / len;
+        if (abs(h) >= c.r) {
+            outside();
+            continue;
+        }
+        Point e = d / len;
+        // 円の中心から辺への垂線の足を原点とする、辺方向の座標。
+        Real xa = dot(e, u), xb = dot(e, v);
+        Real extent = sqrtl(max(Real(0), (c.r - abs(h)) * (c.r + abs(h))));
+        if (xa >= extent || xb <= -extent) {
+            outside();
+            continue;
+        }
+        // 交点座標を作らず、区間の長さと元の辺の外積から面積を求める。
+        // 長い辺を小さい円で切る場合も、近いパラメータ同士を引かない。
+        Real fraction = clamp((min(xb, extent) - max(xa, -extent)) / len, Real(0), Real(1));
+        add(fraction * K);
+        Real S = geometry_detail::difference_cross(c.p, reference, a, b);
+        if (xa < -extent) {
+            Real t = clamp((-extent - xa) / len, Real(0), Real(1));
+            Real scale = c.r / la, delta = (c.r - la) / la;
+            add(scale * t * K);
+            add(delta * fmal(t, S, -X));
+            arc(atan2l(t * H, fmal(xa, -extent, h * h)));
+        }
+        if (xb > extent) {
+            Real t = clamp((xb - extent) / len, Real(0), Real(1));
+            Real scale = c.r / lb, delta = (c.r - lb) / lb;
+            add(scale * t * K);
+            add(delta * fmal(t, S, -Y));
+            arc(atan2l(t * H, fmal(extent, xb, h * h)));
         }
     }
     return (A + correction) * 0.5L;
