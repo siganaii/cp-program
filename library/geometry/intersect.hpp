@@ -25,9 +25,21 @@ bool intersect(const Circle &c, const Point &p) {
 bool intersect(const Segment &s, const Segment &t) {
     return ccw(s.a, s.b, t.a) * ccw(s.a, s.b, t.b) <= 0 && ccw(t.a, t.b, s.a) * ccw(t.a, t.b, s.b) <= 0;
 }
+namespace geometry_detail {
+// 方向の平行判定には長さのEPSを使わず、外積の丸め誤差を見込む。
+bool parallel_directions(const Point& d, const Point& e) {
+    Real tol = 16 * numeric_limits<Real>::epsilon()
+        * (abs(d.x * e.y) + abs(d.y * e.x));
+    return abs(cross(d, e)) <= tol;
+}
+}
 bool intersect(const Ray &r, const Point &p) {
-    if (abs(cross(r.b - r.a, p - r.a)) > EPS) return false;
-    return dot(r.b - r.a, p - r.a) >= -EPS;
+    Point d = r.b - r.a;
+    Real len = abs(d);
+    if (len == 0) return equals(r.a, p);
+    d /= len;
+    if (abs(cross(d, p - r.a)) > EPS) return false;
+    return dot(d, p - r.a) >= -EPS;
 }
 
 bool intersect(const Point &p, const Ray &r) {
@@ -36,8 +48,14 @@ bool intersect(const Point &p, const Ray &r) {
 bool intersect(const Ray &r, const Line &l) {
     Point d = r.b - r.a;
     Point e = l.b - l.a;
+    Real len_d = abs(d), len_e = abs(e);
+    if (len_e == 0) return intersect(r, l.a);
+    if (len_d == 0) return intersect(l, r.a);
+    // tを始点からの距離にし、方向ベクトルの長さによらずEPSを適用する。
+    d /= len_d;
+    e /= len_e;
     Real det = cross(d, e);
-    if (abs(det) < EPS) {
+    if (geometry_detail::parallel_directions(d, e)) {
         return abs(cross(d, l.a - r.a)) < EPS;
     }
     Real t = cross(l.a - r.a, e) / det;
@@ -49,15 +67,20 @@ bool intersect(const Line &l, const Ray &r) {
 bool intersect(const Ray &r, const Segment &s) {
     Point d = r.b - r.a;
     Point e = s.b - s.a;
+    Real len_d = abs(d), len_e = abs(e);
+    if (len_d == 0) return intersect(s, r.a);
+    if (len_e == 0) return intersect(r, s.a);
+    d /= len_d;
+    e /= len_e;
     Real det = cross(d, e);
-    if (abs(det) < EPS) {
+    if (geometry_detail::parallel_directions(d, e)) {
         if (abs(cross(d, s.a - r.a)) > EPS) return false;
         return dot(d, s.a - r.a) >= -EPS
             || dot(d, s.b - r.a) >= -EPS;
     }
     Real t = cross(s.a - r.a, e) / det;
     Real u = cross(s.a - r.a, d) / det;
-    return t >= -EPS && u >= -EPS && u <= 1 + EPS;
+    return t >= -EPS && u >= -EPS && u <= len_e + EPS;
 }
 
 bool intersect(const Segment &s, const Ray &r) {
@@ -66,8 +89,13 @@ bool intersect(const Segment &s, const Ray &r) {
 bool intersect(const Ray &r, const Ray &s) {
     Point d = r.b - r.a;
     Point e = s.b - s.a;
+    Real len_d = abs(d), len_e = abs(e);
+    if (len_d == 0) return intersect(s, r.a);
+    if (len_e == 0) return intersect(r, s.a);
+    d /= len_d;
+    e /= len_e;
     Real det = cross(d, e);
-    if (abs(det) < EPS) {
+    if (geometry_detail::parallel_directions(d, e)) {
         if (abs(cross(d, s.a - r.a)) > EPS) return false;
         return intersect(r, s.a) || intersect(s, r.a);
     }
@@ -109,14 +137,17 @@ int intersect(const Circle &c, const Segment &l) {
 }
 int intersect(const Circle &c, const Ray &r) {
     Point d = r.b - r.a;
-    Real t = dot(c.p - r.a, d) / norm(d);
-    Point h = r.a + d * t;
-    Real h2 = c.r * c.r - norm(h - c.p);
-    if (h2 < -EPS) return 0;
-    if (abs(h2) < EPS) {
+    Real len = abs(d);
+    if (len == 0) return intersect(c, r.a) ? 1 : 0;
+    d /= len;
+    Point v = c.p - r.a;
+    Real t = dot(v, d), h = abs(cross(d, v));
+    Real tol = EPS + 16 * numeric_limits<Real>::epsilon() * max(c.r, abs(v));
+    if (h > c.r + tol) return 0;
+    if (abs(h - c.r) <= tol) {
         return t >= -EPS ? 1 : 0;
     }
-    Real dt = sqrtl(max((Real)0, h2) / norm(d));
+    Real dt = sqrtl(max(Real(0), (c.r - h) * (c.r + h)));
     Real t1 = t - dt;
     Real t2 = t + dt;
     int res = 0;

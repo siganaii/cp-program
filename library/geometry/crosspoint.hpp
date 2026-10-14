@@ -30,7 +30,17 @@ pair<Point, Point> crosspoint(const Circle &c, const Segment &l) {
     return {at(ts[0]), at(ts[count == 2 ? 1 : 0])};
 }
 pair<Point,Point> crosspoint(const Circle &c1,const Circle &c2) {
+    // 交点が存在することを要求する。半径0の円は1点として扱う。
+    if (c1.r == 0) {
+        assert(intersect(c2, c1.p));
+        return {c1.p, c1.p};
+    }
+    if (c2.r == 0) {
+        assert(intersect(c1, c2.p));
+        return {c2.p, c2.p};
+    }
     Real d = abs(c1.p - c2.p);
+    assert(d > 0);
     Real x = (c1.r * c1.r + d * d - c2.r * c2.r) / (2 * c1.r * d);
     if (abs(x) > 1) x = (x > 0 ? 1.0 : -1.0);
     Real a = acos(x);

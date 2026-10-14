@@ -33,7 +33,7 @@ struct IncrementalConvexHull_Lower {
         }
         auto a = *it;
         auto b = left.back();
-        auto det = cross(b - a,p - a);
+        auto det = cross(difference(b, a), difference(p, a));
         if (strict && det > 0) break;
         if (!strict && det >= 0) break;
         left.emplace_back(a);
@@ -52,7 +52,7 @@ struct IncrementalConvexHull_Lower {
         }
         auto a = right.back();
         auto b = *it;
-        auto det = cross(a - p,b - p);
+        auto det = cross(difference(a, p), difference(b, p));
         if (strict && det > 0) break;
         if (!strict && det >= 0) break;
         right.emplace_back(b);
@@ -97,7 +97,7 @@ struct IncrementalConvexHull_Lower {
     }
     auto l = prev(r);
     auto p1 = *l, p2 = *r;
-    auto det = cross(p - p1,p2 - p1);
+    auto det = cross(difference(p, p1), difference(p2, p1));
     if (det == 0) return 0;
     return (det > 0 ? -1 : 1);
   }

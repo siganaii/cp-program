@@ -8,6 +8,8 @@ struct PointBase {
     PointBase(R _x, R _y) : x(_x), y(_y) {}
     template <typename T, typename U>
     PointBase(const pair<T, U>& p) : x(p.first), y(p.second) {}
+    // 通常の座標演算は結果がRの範囲に収まることを要求する。
+    // 範囲を超えうる差分を幾何判定に使う場合はdifferenceを使う。
     P operator+(const P& r) const { return {x + r.x, y + r.y}; }
     P operator-(const P& r) const { return {x - r.x, y - r.y}; }
     P operator*(R r) const { return {x * r, y * r}; }
@@ -32,6 +34,10 @@ struct PointBase {
     friend R imag(const P& p) { return p.y; }
     friend C dot(const P& l, const P& r) {return C(l.x) * r.x + C(l.y) * r.y;}
     friend C cross(const P& l, const P& r) {return C(l.x) * r.y - C(l.y) * r.x;}
+    // 幾何判定用の差分。整数では引き算の前に型を広げる。
+    friend PointBase<C> difference(const P& l, const P& r) {
+        return {C(l.x) - C(r.x), C(l.y) - C(r.y)};
+    }
     friend long double abs(const P& p) { return hypotl((long double)p.x, (long double)p.y); }
     friend C norm(const P& p) { return dot(p, p); }
     friend long double arg(const P& p) { return atan2(p.y, p.x); }

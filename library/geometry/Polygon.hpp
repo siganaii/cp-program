@@ -8,8 +8,8 @@ template <typename T>
 bool is_convex(const vector<PointBase<T>>& p) {
     int n = p.size(), dir = 0;
     for (int i = 0; i < n; i++) {
-        auto c = cross(p[(i + 1) % n] - p[i],
-                       p[(i + 2) % n] - p[(i + 1) % n]);
+        auto c = cross(difference(p[(i + 1) % n], p[i]),
+                       difference(p[(i + 2) % n], p[(i + 1) % n]));
         if (equals(c, 0)) continue;
         int d = c > 0 ? 1 : -1;
         if (dir != 0 && dir != d) return false;
@@ -43,8 +43,8 @@ vector<int> convex_hull(const vector<PointBase<T>>& XY,
     if (n <= 2) return I;
     bool collinear = true;
     for (int k = 1; k + 1 < n; k++) {
-        if (cross(XY[I.back()] - XY[I[0]],
-                  XY[I[k]] - XY[I[0]]) != 0) {
+        if (cross(difference(XY[I.back()], XY[I[0]]),
+                  difference(XY[I[k]], XY[I[0]])) != 0) {
             collinear = false;
             break;
         }
@@ -59,8 +59,8 @@ vector<int> convex_hull(const vector<PointBase<T>>& XY,
         for (int t = 0; t < n; t++) {
             int k = I[upper ? n - 1 - t : t];
             while (H.size() >= 2) {
-                auto d = cross(XY[H.back()] - XY[H[H.size() - 2]],
-                               XY[k] - XY[H.back()]);
+                auto d = cross(difference(XY[H.back()], XY[H[H.size() - 2]]),
+                               difference(XY[k], XY[H.back()]));
                 if constexpr (allow_180) {
                     if (d >= 0) break;
                 } else {
@@ -102,9 +102,10 @@ int contains(const Polygon& Q, const Point& p) {
     for (int i = 0; i < (int)Q.size(); i++) {
         Point a = Q[i] - p, b = Q[(i + 1) % Q.size()] - p;
         if (a.imag() > b.imag()) swap(a, b);
-        if (a.imag() <= 0 && EPS < b.imag() && cross(a, b) < -EPS)
-            in = !in;
         if (equals(cross(a, b), 0) && dot(a, b) <= 0) return ON;
+        // 境界判定以外では高さの基準を0に統一し、頂点を二重に数えない。
+        if (a.imag() <= 0 && 0 < b.imag() && cross(a, b) < 0)
+            in = !in;
     }
     return in ? IN : OUT;
 }
@@ -215,15 +216,23 @@ void merge_segments(vector<Segment>& segs) {
 vector<vector<int>> segment_arrangement(vector<Segment>& segs,
                                          vector<Point>& ps) {
     int N = segs.size();
+    vector<vector<Point>> on(N);
     for (int i = 0; i < N; i++) {
         ps.emplace_back(segs[i].a);
         ps.emplace_back(segs[i].b);
+        on[i].push_back(segs[i].a);
+        on[i].push_back(segs[i].b);
         for (int j = i + 1; j < N; j++) {
             Point p1 = segs[i].b - segs[i].a;
             Point p2 = segs[j].b - segs[j].a;
             if (cross(p1, p2) == 0) continue;
-            if (intersect(segs[i], segs[j]))
-                ps.emplace_back(crosspoint(segs[i], segs[j]));
+            if (intersect(segs[i], segs[j])) {
+                Point p = crosspoint(segs[i], segs[j]);
+                ps.push_back(p);
+                // 算出元の線分への所属は、丸め誤差のある座標で再判定しない。
+                on[i].push_back(p);
+                on[j].push_back(p);
+            }
         }
     }
     sort(ps.begin(), ps.end());
@@ -231,9 +240,12 @@ vector<vector<int>> segment_arrangement(vector<Segment>& segs,
     int M = ps.size();
     vector<vector<int>> g(M);
     for (int i = 0; i < N; i++) {
+        vector<bool> known(M);
+        for (const auto& p : on[i])
+            known[lower_bound(ps.begin(), ps.end(), p) - ps.begin()] = true;
         vector<int> vec;
         for (int j = 0; j < M; j++) {
-            if (intersect(segs[i], ps[j])) vec.emplace_back(j);
+            if (known[j] || intersect(segs[i], ps[j])) vec.emplace_back(j);
         }
         for (int j = 1; j < (int)vec.size(); j++) {
             g[vec[j - 1]].push_back(vec[j]);
@@ -302,7 +314,8 @@ pair<int, int> furthest_pair(const vector<PointBase<T>>& p) {
     D best = -1;
     pair<int, int> ans = {0, 1};
     auto upd = [&](int i, int j) {
-        auto d = dot(p[i] - p[j], p[i] - p[j]);
+        auto delta = difference(p[i], p[j]);
+        auto d = dot(delta, delta);
         if (d > best) {
             best = d;
             ans = {i, j};
@@ -316,12 +329,12 @@ pair<int, int> furthest_pair(const vector<PointBase<T>>& p) {
     int j = 1;
     for (int i = 0; i < n; i++) {
         int ni = (i + 1) % n;
-        auto edge = p[I[ni]] - p[I[i]];
-        while (cross(edge, p[I[(j + 1) % n]] - p[I[j]]) > 0)
+        auto edge = difference(p[I[ni]], p[I[i]]);
+        while (cross(edge, difference(p[I[(j + 1) % n]], p[I[j]])) > 0)
             j = (j + 1) % n;
         upd(I[i], I[j]);
         upd(I[ni], I[j]);
-        if (cross(edge, p[I[(j + 1) % n]] - p[I[j]]) == 0) {
+        if (cross(edge, difference(p[I[(j + 1) % n]], p[I[j]])) == 0) {
             upd(I[i], I[(j + 1) % n]);
             upd(I[ni], I[(j + 1) % n]);
         }
