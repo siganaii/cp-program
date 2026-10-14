@@ -50,12 +50,25 @@ pair<Point,Point> crosspoint(const Circle &c1,const Circle &c2) {
     }
     Real d = abs(c1.p - c2.p);
     assert(d > 0);
-    // 半径の二乗同士を引かず、中心線上の距離を直接求める。
-    Real a = d * 0.5L + ((c1.r - c2.r) / d) * (c1.r * 0.5L + c2.r * 0.5L);
-    a = clamp(a, -c1.r, c1.r);
-    Real h = sqrtl(max(Real(0), (c1.r - a) * (c1.r + a)));
-    Point e = (c2.p - c1.p) / d, n(-e.y, e.x);
-    Point foot = c1.p + e * a;
+    // 小さい円を基準にし、大きい半径と中心線上の距離の差が潰れるのを避ける。
+    bool swapped = c1.r > c2.r;
+    const Circle& small = swapped ? c2 : c1;
+    const Circle& large = swapped ? c1 : c2;
+    Real a;
+    if (small.r < large.r * 0.5L) {
+        // 半径差が大きい場合は d^2 - large.r^2 を先に因数分解する。
+        a = (d - large.r) * (0.5L + 0.5L * (large.r / d))
+          + small.r * (0.5L * (small.r / d));
+    } else {
+        // 半径が近い場合は半径同士の差を使い、近接した中心にも対応する。
+        a = d * 0.5L + ((small.r - large.r) / d) * (small.r * 0.5L + large.r * 0.5L);
+    }
+    a = clamp(a, -small.r, small.r);
+    Real h = sqrtl(max(Real(0), (small.r - a) * (small.r + a)));
+    Point e = (large.p - small.p) / d;
+    // 返す2点の順序は、元の c1 -> c2 の向きにそろえる。
+    Point n = swapped ? Point(e.y, -e.x) : Point(-e.y, e.x);
+    Point foot(fmal(e.x, a, small.p.x), fmal(e.y, a, small.p.y));
     int relation = intersect(c1, c2);
     if (relation == 1 || relation == 3) return {foot, foot};
     return {foot + n * h, foot - n * h};

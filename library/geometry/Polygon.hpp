@@ -96,11 +96,11 @@ enum { OUT, ON, IN };
 int contains(const Polygon& Q, const Point& p) {
     bool in = false;
     for (int i = 0; i < (int)Q.size(); i++) {
-        Point a = Q[i] - p, b = Q[(i + 1) % Q.size()] - p;
-        if (a.imag() > b.imag()) swap(a, b);
+        Point a = Q[i], b = Q[(i + 1) % Q.size()];
+        if (a.y > b.y) swap(a, b);
         if (ccw(Q[i], Q[(i + 1) % Q.size()], p) == 0) return ON;
-        // 境界判定以外では高さの基準を0に統一し、頂点を二重に数えない。
-        if (a.imag() <= 0 && 0 < b.imag() && geometry_detail::cross_value(a, b) < 0)
+        // 高さは半開区間で比較し、向きは座標差分の丸め誤差も補正する。
+        if (a.y <= p.y && p.y < b.y && geometry_detail::line_cross(a, b, p) < 0)
             in = !in;
     }
     return in ? IN : OUT;

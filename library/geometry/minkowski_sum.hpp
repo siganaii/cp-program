@@ -16,9 +16,6 @@ template <typename T>
 vector<PointBase<T>> minkowski_sum(vector<PointBase<T>> A, vector<PointBase<T>> B) {
     if (A.empty() || B.empty()) return {};
     using P = PointBase<T>;
-    auto turn = [](const auto& u, const auto& v) {
-        return geometry_detail::cross_sign(u, v);
-    };
     auto normalize = [&](vector<P>& V) {
         V.erase(unique(V.begin(), V.end()), V.end());
         if (V.size() > 1 && V.front() == V.back()) V.pop_back();
@@ -41,17 +38,19 @@ vector<PointBase<T>> minkowski_sum(vector<PointBase<T>> A, vector<PointBase<T>> 
         return B;
     }
     int NA = A.size(), NB = B.size();
-    using D = decltype(difference(A[0], A[0]));
-    vector<D> DA(NA), DB(NB);
-    for(int i = 0;i < NA;i++) DA[i] = difference(A[(i + 1) % NA], A[i]);
-    for(int i = 0;i < NB;i++) DB[i] = difference(B[(i + 1) % NB], B[i]);
-    auto comp = [&](D L, D R) -> bool {
-        int a = lower_or_upper(L), b = lower_or_upper(R);
-        if (a != b) return a < b;
-        return turn(L, R) > 0;
+    auto comp = [&](const vector<P>& L, int i, const vector<P>& R, int j) {
+        const P& a = L[i];
+        const P& b = L[(i + 1) % L.size()];
+        const P& c = R[j];
+        const P& d = R[(j + 1) % R.size()];
+        int x = lower_or_upper(difference(b, a)), y = lower_or_upper(difference(d, c));
+        if (x != y) return x < y;
+        // 丸めた辺同士ではなく、元の端点から差分の誤差も含めて比較する。
+        return geometry_detail::difference_cross(a, b, c, d) > 0;
     };
-    int start_a = min_element(DA.begin(), DA.end(), comp) - DA.begin();
-    int start_b = min_element(DB.begin(), DB.end(), comp) - DB.begin();
+    int start_a = 0, start_b = 0;
+    for (int i = 1; i < NA; i++) if (comp(A, i, A, start_a)) start_a = i;
+    for (int i = 1; i < NB; i++) if (comp(B, i, B, start_b)) start_b = i;
 
     int a = 0, b = 0;
     vector<P> C;
@@ -60,9 +59,9 @@ vector<PointBase<T>> minkowski_sum(vector<PointBase<T>> A, vector<PointBase<T>> 
         int ia = (start_a + a) % NA, ib = (start_b + b) % NB;
         // 辺を累積加算せず、元の頂点の和から座標を求める。
         C.push_back(A[ia] + B[ib]);
-        if (a == NA || (b < NB && comp(DB[ib], DA[ia]))) {
+        if (a == NA || (b < NB && comp(B, ib, A, ia))) {
             ++b;
-        } else if (b < NB && !comp(DA[ia], DB[ib])) {
+        } else if (b < NB && !comp(A, ia, B, ib)) {
             ++a;
             ++b;
         } else {
