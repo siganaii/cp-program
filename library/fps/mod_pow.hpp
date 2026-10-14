@@ -1,30 +1,34 @@
 #pragma once
+#include "formal-power-series.hpp"
 // f(x)^k mod g(x)
-template <typename mint>
 template <typename mint>
 FormalPowerSeries<mint> mod_pow(int64_t k, const FormalPowerSeries<mint>& f,
                                 const FormalPowerSeries<mint>& g) {
 	using fps = FormalPowerSeries<mint>;
-	assert(!g.empty());
-	auto inv = g.rev().inv();
-	auto quo = [&](const fps& poly) {
-		if (poly.size() < g.size()) return fps{};
-		int n = poly.size() - g.size() + 1;
-		return (poly.rev().pre(n) * inv.pre(n)).pre(n).rev();
-	};
-	auto res = [&](auto &self, int K) -> fps {
-		if(K == 0) return {1};
-		if(K == 1) return f;
-		fps F = self(self,K/2);
-		F *= F;
-		F -= quo(F) * g;
-		F.shrink();
-		if(K & 1) {
-			F *= f;
-			F -= quo(F) * g;
-			F.shrink();
+	assert(k >= 0);
+	fps modulus = g;
+	modulus.shrink();
+	assert(!modulus.empty());
+	if (modulus.size() == 1) return {};
+	fps result{1};
+	if (k == 0) return result;
+	fps base = f % modulus;
+	if (k == 1) return base;
+	// Reduced factors have degree less than deg(modulus).
+	auto inv = modulus.rev().inv((int)modulus.size() - 1);
+	auto reduce = [&](fps poly) {
+		if (poly.size() >= modulus.size()) {
+			int n = poly.size() - modulus.size() + 1;
+			auto q = (poly.rev().pre(n) * inv.pre(n)).pre(n).rev();
+			poly -= q * modulus;
 		}
-		return F;
+		poly.shrink();
+		return poly;
 	};
-	return res(res,k);
+	while (k) {
+		if (k & 1) result = reduce(result * base);
+		k >>= 1;
+		if (k) base = reduce(base * base);
+	}
+	return result;
 }

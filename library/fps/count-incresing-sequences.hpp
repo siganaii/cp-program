@@ -130,6 +130,8 @@ template<class mint>
 vector<mint> count_increase_sequences_with_upper_lower_bounds(Binomial<mint> &BC,vector<int> A, vector<int> B,vector<mint> C = {}){
     int N = A.size();
     assert(A.size() == B.size());
+    assert(N > 0);
+    assert(C.empty() || (int)C.size() == B[0] - A[0]);
     for (int i = 0; i < N - 1; i++){
         A[i + 1] = max(A[i], A[i + 1]);
     }
@@ -150,7 +152,8 @@ vector<mint> count_increase_sequences_with_upper_lower_bounds(Binomial<mint> &BC
     if (C.empty()){
         C.resize(B[0] - A[0], 1);
     }
-    else assert((int)(C.size()) == B[0] - A[0]);
+    // Tightening the upper bounds can remove impossible starting values.
+    else C.resize(B[0] - A[0]);
     int l = 0;
     while (B[l] <= A.back()){
         for (int i = (int)(C.size()) - 1; i > 0; i--) C[i] -= C[i - 1];

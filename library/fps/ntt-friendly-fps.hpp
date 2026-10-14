@@ -37,8 +37,9 @@ int FormalPowerSeries<mint>::ntt_pr() {
 }
 template <typename mint>
 FormalPowerSeries<mint> FormalPowerSeries<mint>::inv(int deg) const {
-    assert((*this)[0] != mint(0));
+    assert(!this->empty() && (*this)[0] != mint(0));
     if (deg == -1) deg = (int)this->size();
+    if (deg == 0) return {};
     FormalPowerSeries<mint> res(deg);
     res[0] = {mint(1) / (*this)[0]};
     for (int d = 1; d < deg; d <<= 1) {

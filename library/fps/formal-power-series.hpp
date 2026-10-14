@@ -28,6 +28,13 @@ struct FormalPowerSeries : vector<mint> {
         return *this;
     }
     FPS &operator/=(const FPS &r) {
+        assert(!r.empty());
+        if (r.back() == mint(0)) {
+            FPS g(r);
+            g.shrink();
+            assert(!g.empty());
+            return *this /= g;
+        }
         if (this->size() < r.size()) {
             this->clear();
             return *this;
@@ -35,7 +42,6 @@ struct FormalPowerSeries : vector<mint> {
         int n = this->size() - r.size() + 1;
         if ((int)r.size() <= 64) {
             FPS f(*this), g(r);
-            g.shrink();
             mint coeff = g.back().inverse();
             for (auto &x : g) x *= coeff;
             int deg = (int)f.size() - (int)g.size() + 1;
@@ -122,13 +128,17 @@ struct FormalPowerSeries : vector<mint> {
         return r;
     }
     FPS log(int deg = -1) const {
-        assert((*this)[0] == mint(1));
+        assert(!this->empty() && (*this)[0] == mint(1));
         if (deg == -1) deg = (int)this->size();
-        return (this->diff() * this->inv(deg)).pre(deg - 1).integral();
+        if (deg == 0) return {};
+        FPS ret = (this->diff() * this->inv(deg)).pre(deg - 1).integral();
+        ret.resize(deg);
+        return ret;
     }
     FPS pow(int64_t k, int deg = -1) const {
         const int n = (int)this->size();
         if (deg == -1) deg = n;
+        if (deg == 0) return {};
         if (k == 0) {
             FPS ret(deg);
             if (deg) ret[0] = 1;

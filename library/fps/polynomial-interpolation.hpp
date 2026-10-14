@@ -6,6 +6,7 @@ FormalPowerSeries<mint> PolynomialInterpolation(const vector<mint> &xs,
                                                 const vector<mint> &ys) {
     using fps = FormalPowerSeries<mint>;
     assert(xs.size() == ys.size());
+    if (xs.empty()) return {};
     ProductTree<mint> ptree(xs);
     fps w = ptree.buf[1].diff();
     vector<mint> vs = InnerMultipointEvaluation<mint>(w, xs, ptree);

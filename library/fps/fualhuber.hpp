@@ -8,6 +8,7 @@ FormalPowerSeries<mint> fualhuber(const FormalPowerSeries<mint>& f,
                                   Binomial<mint>& C) {
   using fps = FormalPowerSeries<mint>;
   int N = f.size();
+  if (N == 0) return {};
   auto B = BernoulliEGF(N + 3, C);
   B[1] = -B[1];
   fps s(N), t(N);

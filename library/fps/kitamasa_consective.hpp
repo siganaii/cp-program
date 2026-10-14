@@ -125,8 +125,8 @@ FormalPowerSeries<mint> RangeRationalProper(
 
     // even index: i = 2m
     // 2m in [l, r) <=> m in [ceil(l/2), ceil(r/2))
-    long long el = (l + 1) / 2;
-    long long er = (r + 1) / 2;
+    long long el = l / 2 + (l & 1);
+    long long er = r / 2 + (r & 1);
 
     // odd index: i = 2m + 1
     // 2m+1 in [l, r) <=> m in [floor(l/2), floor(r/2))
