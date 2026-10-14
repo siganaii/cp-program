@@ -38,16 +38,20 @@ Real cross_value(const Point& a, const Point& b) {
     Real p = a.y * b.x;
     return fmal(a.x, b.y, -p) + fmal(-a.y, b.x, p);
 }
-// 差分で失われた下位桁も外積に加え、遠い端点から近い点を引く場合に備える。
-Real line_cross(const Point& a, const Point& b, const Point& p) {
+// 2本の差分ベクトルの外積。引き算で失われた下位桁も加える。
+Real difference_cross(const Point& a, const Point& b,
+                      const Point& c, const Point& d) {
     auto error = [](const Point& x, const Point& y, const Point& d) {
         Point v = x - d;
         return (x - (d + v)) + (v - y);
     };
-    Point d = b - a, v = p - a;
-    Point de = error(b, a, d), ve = error(p, a, v);
-    return cross_value(d, v) + cross_value(d, ve)
-         + cross_value(de, v) + cross_value(de, ve);
+    Point u = b - a, v = d - c;
+    Point ue = error(b, a, u), ve = error(d, c, v);
+    return cross_value(u, v) + cross_value(u, ve)
+         + cross_value(ue, v) + cross_value(ue, ve);
+}
+Real line_cross(const Point& a, const Point& b, const Point& p) {
+    return difference_cross(a, b, a, p);
 }
 Real radial_tolerance(Real a, Real b) {
     return EPS + 16 * numeric_limits<Real>::epsilon() * max(abs(a), abs(b));

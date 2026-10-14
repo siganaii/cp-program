@@ -7,9 +7,14 @@ Point crosspoint(const Line &l, const Line &m) {
         assert(geometry_detail::line_side(l.a, l.b, m.a) == 0);
         return m.a;
     }
-    Real t = geometry_detail::cross_value(m.a - l.a, e)
-           / geometry_detail::cross_value(d, e);
-    return {fmal(d.x, t, l.a.x), fmal(d.y, t, l.a.y)};
+    Real det = geometry_detail::difference_cross(l.a, l.b, m.a, m.b);
+    Real t = geometry_detail::line_cross(m.a, m.b, l.a) / det;
+    Point p(fmal(d.x, t, l.a.x), fmal(d.y, t, l.a.y));
+    // 遠い端点から求めた座標を、両直線からのずれに基づいて局所的に補正する。
+    Real along_d = geometry_detail::line_cross(m.a, m.b, p) / det;
+    Real along_e = -geometry_detail::line_cross(l.a, l.b, p) / det;
+    return {fmal(d.x, along_d, fmal(e.x, along_e, p.x)),
+            fmal(d.y, along_d, fmal(e.y, along_e, p.y))};
 }
 Point crosspoint(const Segment &l, const Segment &m) {
     // 交点の存在を要求する。重なる場合は両方の線分に属する端点を返す。

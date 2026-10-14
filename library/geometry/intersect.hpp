@@ -31,10 +31,10 @@ pair<int, array<Point, 2>> circle_line_intersections(const Circle& c, const Line
         return {intersect(c, l.a) ? 1 : 0, ps};
     }
     Point e = d / len, n(-e.y, e.x);
-    Real signed_h = cross_value(d, c.p - l.a) / len;
+    Real signed_h = line_cross(l.a, l.b, c.p) / len;
     Real h = abs(signed_h), tol = radial_tolerance(h, c.r);
     if (h - c.r > tol) return {0, ps};
-    Point foot = c.p - n * signed_h;
+    Point foot(fmal(-n.x, signed_h, c.p.x), fmal(-n.y, signed_h, c.p.y));
     ps[0] = foot;
     if (abs(h - c.r) <= tol) return {1, ps};
     Real offset = sqrtl(max(Real(0), (c.r - h) * (c.r + h)));
@@ -76,15 +76,13 @@ bool intersect(const Ray &r, const Line &l) {
     Real len_d = abs(d), len_e = abs(e);
     if (len_e == 0) return intersect(r, l.a);
     if (len_d == 0) return intersect(l, r.a);
-    // tを始点からの距離にし、方向ベクトルの長さによらずEPSを適用する。
-    d /= len_d;
-    e /= len_e;
-    Real det = geometry_detail::cross_value(d, e);
     if (geometry_detail::parallel_directions(d, e)) {
         return geometry_detail::line_side(r.a, r.b, l.a) == 0;
     }
-    Real t = geometry_detail::cross_value(l.a - r.a, e) / det;
-    return t >= -EPS;
+    // 方向は正規化せず、パラメータ側のEPSを長さで換算する。
+    Real det = geometry_detail::difference_cross(r.a, r.b, l.a, l.b);
+    Real t = geometry_detail::line_cross(l.a, l.b, r.a) / det;
+    return t >= -EPS / len_d;
 }
 bool intersect(const Line &l, const Ray &r) {
     return intersect(r, l);
@@ -95,16 +93,16 @@ bool intersect(const Ray &r, const Segment &s) {
     Real len_d = abs(d), len_e = abs(e);
     if (len_d == 0) return intersect(s, r.a);
     if (len_e == 0) return intersect(r, s.a);
-    d /= len_d;
-    e /= len_e;
-    Real det = geometry_detail::cross_value(d, e);
     if (geometry_detail::parallel_directions(d, e)) {
         if (geometry_detail::line_side(r.a, r.b, s.a) != 0) return false;
         return intersect(r, s.a) || intersect(r, s.b);
     }
-    Real t = geometry_detail::cross_value(s.a - r.a, e) / det;
-    Real u = geometry_detail::cross_value(s.a - r.a, d) / det;
-    return t >= -EPS && u >= -EPS && u <= len_e + EPS;
+    Real det = geometry_detail::difference_cross(r.a, r.b, s.a, s.b);
+    Real t = geometry_detail::line_cross(s.a, s.b, r.a) / det;
+    Real u = -geometry_detail::line_cross(r.a, r.b, s.a) / det;
+    // u - 1 の引き算を避け、終点側のずれも元の座標から計算する。
+    Real v = -geometry_detail::line_cross(r.a, r.b, s.b) / det;
+    return t >= -EPS / len_d && u >= -EPS / len_e && v <= EPS / len_e;
 }
 
 bool intersect(const Segment &s, const Ray &r) {
@@ -116,16 +114,14 @@ bool intersect(const Ray &r, const Ray &s) {
     Real len_d = abs(d), len_e = abs(e);
     if (len_d == 0) return intersect(s, r.a);
     if (len_e == 0) return intersect(r, s.a);
-    d /= len_d;
-    e /= len_e;
-    Real det = geometry_detail::cross_value(d, e);
     if (geometry_detail::parallel_directions(d, e)) {
         if (geometry_detail::line_side(r.a, r.b, s.a) != 0) return false;
         return intersect(r, s.a) || intersect(s, r.a);
     }
-    Real t = geometry_detail::cross_value(s.a - r.a, e) / det;
-    Real u = geometry_detail::cross_value(s.a - r.a, d) / det;
-    return t >= -EPS && u >= -EPS;
+    Real det = geometry_detail::difference_cross(r.a, r.b, s.a, s.b);
+    Real t = geometry_detail::line_cross(s.a, s.b, r.a) / det;
+    Real u = -geometry_detail::line_cross(r.a, r.b, s.a) / det;
+    return t >= -EPS / len_d && u >= -EPS / len_e;
 }
 namespace geometry_detail {
 // 始点から終点の順に交点を返す。端点を含め、動的確保は行わない。
