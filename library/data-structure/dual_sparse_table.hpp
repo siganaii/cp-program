@@ -1,14 +1,17 @@
 #pragma once
+// composition は結合則・可換性・冪等性を満たし、e() はその単位元であること。
+// 例: min / max / bitwise OR。加算は更新が重複するため使えない。
+// apply をすべて実行してから build し、get で結果を取得する。
 template<class S,S (*e)(),S (*composition)(S, S)>
 struct dual_sparse_table {
     std::vector<std::vector<S>> table;
     int n2;
-    dual_sparse_table () {}
+    dual_sparse_table (): dual_sparse_table(0) {}
     dual_sparse_table (const int _n): dual_sparse_table(vector<S>(_n, e())) {}
     dual_sparse_table(const vector<S>& v) {
-        n2 = 0;
+        n2 = 1; // 空配列でも table[0] を確保する。
         int n = v.size();
-        while ((1<<n2) <= n) n2++;
+        while ((1LL<<n2) <= n) n2++;
         table.resize(n2);
         table[0] = v;
         for (int i = 0; i < n2-1; i++){
