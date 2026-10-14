@@ -38,6 +38,17 @@ Real cross_value(const Point& a, const Point& b) {
     Real p = a.y * b.x;
     return fmal(a.x, b.y, -p) + fmal(-a.y, b.x, p);
 }
+// 差分で失われた下位桁も外積に加え、遠い端点から近い点を引く場合に備える。
+Real line_cross(const Point& a, const Point& b, const Point& p) {
+    auto error = [](const Point& x, const Point& y, const Point& d) {
+        Point v = x - d;
+        return (x - (d + v)) + (v - y);
+    };
+    Point d = b - a, v = p - a;
+    Point de = error(b, a, d), ve = error(p, a, v);
+    return cross_value(d, v) + cross_value(d, ve)
+         + cross_value(de, v) + cross_value(de, ve);
+}
 Real radial_tolerance(Real a, Real b) {
     return EPS + 16 * numeric_limits<Real>::epsilon() * max(abs(a), abs(b));
 }
@@ -121,8 +132,13 @@ bool orthogonal(const Line &a, const Line &b) {
     return abs(dot(d, e)) <= geometry_detail::dot_error(d, e);
 }
 Point projection(const Line &l, const Point &p) {
-    Real t = dot(p - l.a, l.a - l.b) / norm(l.a - l.b);
-    return l.a + (l.a - l.b) * t;
+    Point d = l.b - l.a;
+    Real len = abs(d);
+    assert(len > 0);
+    Point n(-d.y / len, d.x / len);
+    Real h = geometry_detail::line_cross(l.a, l.b, p) / len;
+    // 遠い端点に戻すのではなく、対象の点から垂直方向に移動する。
+    return {fmal(-n.x, h, p.x), fmal(-n.y, h, p.y)};
 }
 Point reflection(const Line &l, const Point &p) {
     return p + (projection(l, p) - p) * 2.0;

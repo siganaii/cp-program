@@ -278,7 +278,38 @@ long double area(const Polygon& p) {
 // 各辺を交点で高々3区間に分ける。再帰を使わず O(N)。
 long double area(const Polygon& p, const Circle& c) {
     if (p.size() < 3 || c.r == 0) return 0;
-    Real A = 0;
+    bool inside = true;
+    for (const auto& v : p) {
+        if (abs(v - c.p) > c.r) {
+            inside = false;
+            break;
+        }
+    }
+    // 円は凸なので、全頂点が内部なら多角形全体も内部にある。
+    if (inside) return area(p);
+    Real A = 0, correction = 0;
+    auto add = [&](Real value) {
+        Real next = A + value;
+        correction += abs(A) >= abs(value)
+            ? (A - next) + value : (value - next) + A;
+        A = next;
+    };
+    auto on_circle = [&](Point v) {
+        Real len = abs(v);
+        return len == 0 ? v : v * (c.r / len);
+    };
+    Point reference = p[0] - c.p;
+    if (abs(reference) > c.r) reference = on_circle(reference);
+    auto arc_remainder = [](Real theta) {
+        if (abs(theta) >= 0.1L) return theta - sinl(theta);
+        // 小さい角度でも theta - sin(theta) の有効桁を失わないようにする。
+        Real t2 = theta * theta, term = theta * t2 / 6, sum = term;
+        for (int k = 5; k <= 13; k += 2) {
+            term *= -t2 / ((k - 1) * k);
+            sum += term;
+        }
+        return sum;
+    };
     Circle origin(Point(0, 0), c.r);
     for (int i = 0; i < (int)p.size(); i++) {
         Point a = p[i] - c.p, b = p[(i + 1) % p.size()] - c.p;
@@ -292,11 +323,18 @@ long double area(const Polygon& p, const Circle& c) {
             if (cuts[j] == cuts[j + 1]) continue;
             Point u = cuts[j], v = cuts[j + 1];
             Point mid = (u + v) * 0.5L;
-            if (norm(mid) <= c.r * c.r) A += cross(u, v);
-            else A += c.r * c.r * atan2l(cross(u, v), dot(u, v));
+            if (abs(mid) <= c.r) {
+                add(geometry_detail::cross_value(u - reference, v - reference));
+            } else {
+                Real theta = atan2l(geometry_detail::cross_value(u, v), dot(u, v));
+                Point a = on_circle(u), b = on_circle(v);
+                // 円外の部分は円弧に写す。近い基準点からの三角形と弓形に分ける。
+                add(geometry_detail::cross_value(a - reference, b - reference));
+                add(c.r * c.r * arc_remainder(theta));
+            }
         }
     }
-    return A * 0.5L;
+    return (A + correction) * 0.5L;
 }
 
 // 最遠点対の添字。異なる2点を選ぶ。2点未満なら {-1,-1}。

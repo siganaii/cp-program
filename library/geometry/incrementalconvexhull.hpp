@@ -110,6 +110,8 @@ struct Incremental_ConvexHull {
   IncrementalConvexHull_Lower<T, strict> LOWER, UPPER;
   int cnt_E;
   C det_sum;
+  P area_origin;
+  C area_correction = 0;
   bool is_empty;
 
   Incremental_ConvexHull() : cnt_E(0), det_sum(0), is_empty(1) {}
@@ -120,36 +122,62 @@ struct Incremental_ConvexHull {
 
   template <typename REAL>
   REAL area() {
-    return static_cast<REAL>(det_sum) / REAL(2);
+    return static_cast<REAL>(area_2()) / REAL(2);
   }
-  C area_2() { return det_sum; }
+  C area_2() { return det_sum + area_correction; }
+
+  C area_cross(P a, P b, bool upper) {
+    if constexpr (is_floating_point_v<T>) {
+      // 初めに追加した点を原点にする。上側凸包では座標が反転している。
+      P origin = upper ? -area_origin : area_origin;
+      a -= origin;
+      b -= origin;
+      C p = a.y * b.x;
+      return fma(a.x, b.y, -p) + fma(-a.y, b.x, p);
+    } else {
+      return cross(a, b);
+    }
+  }
+
+  void add_area(C value) {
+    if constexpr (is_floating_point_v<T>) {
+      // 辺の追加・削除を繰り返したときの加算誤差も補償する。
+      C next = det_sum + value;
+      area_correction += abs(det_sum) >= abs(value)
+          ? (det_sum - next) + value : (value - next) + det_sum;
+      det_sum = next;
+    } else {
+      det_sum += value;
+    }
+  }
 
   template <typename ADD_V, typename RM_V, typename ADD_E, typename RM_E>
   void add(PointBase<T> p, ADD_V add_v, RM_V rm_v, ADD_E add_e, RM_E rm_e) {
+    if (is_empty) area_origin = p;
     is_empty = 0;
     LOWER.add(
         p, add_v, rm_v,
         [&](PointBase<T> a, PointBase<T> b) {
           add_e(a, b);
           ++cnt_E;
-          det_sum += cross(a,b);
+          add_area(area_cross(a, b, false));
         },
         [&](PointBase<T> a, PointBase<T> b) {
           rm_e(a, b);
           --cnt_E;
-          det_sum -= cross(a,b);
+          add_area(-area_cross(a, b, false));
         });
     UPPER.add(
         -p, [&](PointBase<T> p) { add_v(-p); }, [&](PointBase<T> p) { rm_v(-p); },
         [&](PointBase<T> a, PointBase<T> b) {
           add_e(-a, -b);
           ++cnt_E;
-          det_sum += cross(a,b);
+          add_area(area_cross(a, b, true));
         },
         [&](PointBase<T> a, PointBase<T> b) {
           rm_e(-a, -b);
           --cnt_E;
-          det_sum -= cross(a,b);
+          add_area(-area_cross(a, b, true));
         });
   }
   void add(PointBase<T> p) {
