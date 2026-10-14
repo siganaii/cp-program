@@ -90,7 +90,7 @@ struct MinCostFlow {
     assert(lo <= hi);
     g[from].emplace_back(Edge{from, to, hi, cost, re});
     g[to].emplace_back(Edge{to, from, -lo, -cost, e});
-    edges.emplace_back(EdgePtr{this, from, e});
+    edges.emplace_back(from, e);
   }
 
   void add_source(const V_id v, const Flow amount) { b[v] += amount; }
@@ -98,12 +98,13 @@ struct MinCostFlow {
 
  private:
   static Cost constexpr unreachable = std::numeric_limits<Cost>::max();
-  Cost farthest;
+  Cost farthest = 0;
   vector<Cost> potential, dist;
   vector<Edge *> parent;
   priority_queue<pair<Cost,int>,vector<pair<Cost,int>>,greater<pair<Cost,int>>> pq;
   vector<V_id> excess_vs, deficit_vs;
-  vector<EdgePtr> edges;
+  // オブジェクト自身へのポインタを保存せず、コピー・移動後も同じ辺を参照する。
+  vector<pair<V_id, E_id>> edges;
   Edge &rev(const Edge &e) { return g[e.to][e.rev]; }
 
   void push(Edge &e, const Flow amount) {
@@ -207,19 +208,14 @@ struct MinCostFlow {
     for (const auto &es : g)
       for (const auto &e : es) inf_flow = std::max(inf_flow, e.residual_cap());
     Flow delta = 1;
-    while (delta <= inf_flow) delta *= SCALING_FACTOR;
+    while (delta <= inf_flow / SCALING_FACTOR) delta *= SCALING_FACTOR;
 
-    for (delta /= SCALING_FACTOR; delta; delta /= SCALING_FACTOR) {
+    for (; delta; delta /= SCALING_FACTOR) {
       saturate_negative(delta);
       while (dual(delta)) primal(delta);
     }
 
-    i128 value = 0;
-    for (const auto &es : g)
-      for (const auto &e : es) {
-        value += i128(e.flow) * e.cost;
-      }
-    value /= 2;
+    i128 value = get_result_value<i128>();
 
     if (excess_vs.empty() && deficit_vs.empty()) {
       return {true, value};
@@ -229,26 +225,27 @@ struct MinCostFlow {
   }
 
   template <class T>
-  T get_result_value() {
-    T value = 0;
-    for (const auto &es : g)
-      for (const auto &e : es) {
-        value += (T)(e.flow) * (T)(e.cost);
-      }
-    value /= (T)2;
-    return value;
+  T get_result_value() const {
+    using Sum = std::conditional_t<std::is_integral<T>::value && (sizeof(T) < sizeof(i128)), i128, T>;
+    Sum value = 0;
+    // 元の辺だけを数え、正逆の辺を二重に足し込まない。
+    for (const auto &[v, id] : edges) {
+      const auto &e = g[v][id];
+      value += Sum(e.flow) * Sum(e.cost);
+    }
+    return T(value);
   }
 
-  std::vector<Cost> get_potential() {
-    std::fill(potential.begin(), potential.end(), 0);
-    for (int i = 0; i < (int)n; i++)
-      for (const auto &es : g)
-        for (const auto &e : es)
-          if (e.residual_cap() > 0)
-            potential[e.to] =
-                std::min(potential[e.to], potential[e.from] + e.cost);
+  // solve() が計算した双対変数を O(V) で返す。グラフ変更後は solve() を再実行する。
+  std::vector<Cost> get_potential() const {
+    assert(potential.size() == n);
     return potential;
   }
 
-  std::vector<EdgePtr> get_edges() { return edges; }
+  std::vector<EdgePtr> get_edges() const {
+    std::vector<EdgePtr> result;
+    result.reserve(edges.size());
+    for (const auto &[v, id] : edges) result.emplace_back(EdgePtr{this, v, id});
+    return result;
+  }
 };

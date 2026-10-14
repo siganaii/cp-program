@@ -35,6 +35,8 @@ struct simple_queue {
 ・atcoder library をすこし改変したもの
 ・DAG = true であれば、負辺 OK （1 回目の最短路を dp で行う）
 ただし、頂点番号は toposort されていることを仮定している。
+・辺は最初の flow / slope 呼び出し前に追加する。
+・同じグラフで flow / slope を複数回呼べる。返り値はその呼び出しで追加した流量・費用。
 */
 template <class Cap = int, class Cost = long long, bool DAG = false>
 struct Min_Cost_Flow {
@@ -48,6 +50,7 @@ public:
 
   // frm, to, cap, cost
   int add(int frm, int to, Cap cap, Cost cost) {
+    assert(potential.empty());
     assert(0 <= frm && frm < n);
     assert(0 <= to && to < n);
     assert(0 <= cap);
@@ -156,6 +159,10 @@ private:
   vector<pair<Cap, Cost>> slope(internal::csr<_edge>& g, Cap flow_limit) {
     if (DAG) assert(source == 0 && sink == n - 1);
     vector<pair<Cost, Cost>> dual_dist(n);
+    const bool first_call = potential.empty();
+    if (!first_call) {
+      for (int v = 0; v < n; v++) dual_dist[v].first = potential[v];
+    }
     vector<int> prev_e(n);
     vector<bool> vis(n);
     struct Q {
@@ -255,7 +262,7 @@ private:
     bool has_prev = false;
     vector<pair<Cap, Cost>> result = {{Cap(0), Cost(0)}};
     while (flow < flow_limit) {
-      if (DAG && flow == 0) {
+      if (DAG && first_call && flow == 0) {
         if (!dual_ref_dag()) break;
       } else {
         if (!dual_ref()) break;
@@ -275,7 +282,8 @@ private:
       prev_cost_per_flow = d;
       has_prev = true;
     }
-    dual_ref();
+    if (DAG && first_call && flow == 0) dual_ref_dag();
+    else dual_ref();
     potential.resize(n);
     for(int v = 0;v < n;++v) potential[v] = dual_dist[v].first;
     return result;
