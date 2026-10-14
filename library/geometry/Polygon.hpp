@@ -269,31 +269,27 @@ long double area(const Polygon& p) {
 
 // 多角形と円の共通部分の符号付き面積。
 // 多角形が反時計回りで正、時計回りで負。
+// 各辺を交点で高々3区間に分ける。再帰を使わず O(N)。
 long double area(const Polygon& p, const Circle& c) {
-    if (p.size() < 3) return 0;
-    auto cross_area = [&](auto& self, const Circle& c,
-                          const Point& a, const Point& b) -> Real {
-        Point va = c.p - a, vb = c.p - b;
-        Real f = cross(va, vb), ret = 0;
-        if (equals(f, 0)) return ret;
-        if (max(abs(va), abs(vb)) < c.r + EPS) return f;
-        if (distance(Segment(a, b), c.p) > c.r - EPS) {
-            Point conjva = va.conj();
-            Point mulva = {
-                vb.x * conjva.x - vb.y * conjva.y,
-                vb.x * conjva.y + vb.y * conjva.x
-            };
-            return c.r * c.r * arg(mulva);
-        }
-        auto u = crosspoint(c, Segment(a, b));
-        vector<Point> tot{a, u.first, u.second, b};
-        for (int i = 0; i + 1 < (int)tot.size(); i++)
-            ret += self(self, c, tot[i], tot[i + 1]);
-        return ret;
-    };
+    if (p.size() < 3 || c.r == 0) return 0;
     Real A = 0;
-    for (int i = 0; i < (int)p.size(); i++)
-        A += cross_area(cross_area, c, p[i], p[(i + 1) % p.size()]);
+    Circle origin(Point(0, 0), c.r);
+    for (int i = 0; i < (int)p.size(); i++) {
+        Point a = p[i] - c.p, b = p[(i + 1) % p.size()] - c.p;
+        Point d = b - a;
+        if (a == b) continue;
+        auto [count, ts] = geometry_detail::circle_segment_parameters(origin, Segment(a, b));
+        array<Real, 4> cuts{};
+        for (int j = 0; j < count; j++) cuts[j + 1] = ts[j];
+        cuts[count + 1] = 1;
+        for (int j = 0; j <= count; j++) {
+            if (cuts[j] == cuts[j + 1]) continue;
+            Point u = a + d * cuts[j], v = a + d * cuts[j + 1];
+            Point mid = a + d * ((cuts[j] + cuts[j + 1]) * 0.5L);
+            if (norm(mid) <= c.r * c.r) A += cross(u, v);
+            else A += c.r * c.r * atan2l(cross(u, v), dot(u, v));
+        }
+    }
     return A * 0.5L;
 }
 

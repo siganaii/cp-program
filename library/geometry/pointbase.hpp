@@ -32,8 +32,8 @@ struct PointBase {
     friend R imag(const P& p) { return p.y; }
     friend C dot(const P& l, const P& r) {return C(l.x) * r.x + C(l.y) * r.y;}
     friend C cross(const P& l, const P& r) {return C(l.x) * r.y - C(l.y) * r.x;}
-    friend long double abs(const P& p) { return sqrtl(p.x * p.x + p.y * p.y); }
-    friend R norm(const P& p) { return p.x * p.x + p.y * p.y; }
+    friend long double abs(const P& p) { return hypotl((long double)p.x, (long double)p.y); }
+    friend C norm(const P& p) { return dot(p, p); }
     friend long double arg(const P& p) { return atan2(p.y, p.x); }
     friend istream& operator>>(istream& is, P& p) {
         R a, b;

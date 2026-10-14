@@ -9,9 +9,12 @@ Real distance(const Line &l, const Line &m) {
     return intersect(l, m) ? 0 : distance(l, m.a);
 }
 Real distance(const Segment &s, const Point &p) {
-    Point r = projection(s, p);
-    if (intersect(s, r)) return abs(r - p);
-    return min(abs(s.a - p), abs(s.b - p));
+    Point d = s.b - s.a;
+    Real len2 = norm(d);
+    if (len2 == 0) return abs(s.a - p);
+    // 垂線の足の位置は内積で判定し、外積の丸め誤差を避ける。
+    Real t = clamp(dot(p - s.a, d) / len2, Real(0), Real(1));
+    return abs((p - s.a) - d * t);
 }
 Real distance(const Segment &a, const Segment &b) {
     if (intersect(a, b)) return 0;

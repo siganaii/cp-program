@@ -10,7 +10,8 @@ bool intersect(const Segment &s, const Point &p) {
     return ccw(s.a, s.b, p) == 0;
 }
 bool intersect(const Line &l, const Segment &s) {
-    return cross(l.b - l.a, s.a - l.a) * cross(l.b - l.a, s.b - l.a) < EPS;
+    return sign(cross(l.b - l.a, s.a - l.a))
+         * sign(cross(l.b - l.a, s.b - l.a)) <= 0;
 }
 bool intersect(const Segment &s,const Line &l) {
     return intersect(l,s);   
@@ -74,15 +75,37 @@ bool intersect(const Ray &r, const Ray &s) {
     Real u = cross(s.a - r.a, d) / det;
     return t >= -EPS && u >= -EPS;
 }
+namespace geometry_detail {
+// 円周と線分の交点を a + (b-a)*t の t で返す。端点を含め、昇順に並ぶ。
+// 固定長配列を使い、交点数の判定でも動的確保を行わない。
+pair<int, array<Real, 2>> circle_segment_parameters(const Circle& c,
+                                                   const Segment& s) {
+    array<Real, 2> ts{};
+    int count = 0;
+    Point d = s.b - s.a;
+    Real len = abs(d);
+    if (len == 0) return {intersect(c, s.a) ? 1 : 0, ts};
+    Point e = d / len, v = c.p - s.a;
+    Real h = abs(cross(e, v)), along = dot(e, v);
+    const Real roundoff = 16 * numeric_limits<Real>::epsilon();
+    Real tol = EPS + roundoff * max(c.r, abs(v));
+    if (h > c.r + tol) return {0, ts};
+    Real dt = abs(h - c.r) <= tol ? 0
+        : sqrtl(max(Real(0), (c.r - h) * (c.r + h)));
+    Real t_tol = EPS / len + roundoff;
+    auto add = [&](Real t) {
+        if (t < -t_tol || t > 1 + t_tol) return;
+        t = clamp(t, Real(0), Real(1));
+        if (count == 0 || t != ts[count - 1]) ts[count++] = t;
+    };
+    add((along - dt) / len);
+    if (dt != 0) add((along + dt) / len);
+    return {count, ts};
+}
+}
+// 円周との異なる交点数。接点や端点はそれぞれ1点として数える。
 int intersect(const Circle &c, const Segment &l) {
-    if (norm(projection(l, c.p) - c.p) - c.r * c.r > EPS) return 0;
-    auto d1 = abs(c.p - l.a), d2 = abs(c.p - l.b);
-    if (d1 < c.r + EPS && d2 < c.r + EPS) return 0;
-    if (d1 < c.r - EPS && d2 > c.r + EPS || d1 > c.r + EPS && d2 < c.r - EPS)
-        return 1;
-    const Point h = projection(l, c.p);
-    if (dot(l.a - h, l.b - h) < 0) return 2;
-    return 0;
+    return geometry_detail::circle_segment_parameters(c, l).first;
 }
 int intersect(const Circle &c, const Ray &r) {
     Point d = r.b - r.a;

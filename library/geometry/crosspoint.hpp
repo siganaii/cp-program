@@ -18,14 +18,16 @@ pair<Point,Point> crosspoint(const Circle &c, const Line &l) {
     return {pr - e * base, pr + e * base};
 }
 pair<Point, Point> crosspoint(const Circle &c, const Segment &l) {
-    Line aa = Line(l.a, l.b);
-    if (intersect(c, l) == 2) return crosspoint(c, aa);
-    auto ret = crosspoint(c, aa);
-    if (dot(l.a - ret.first, l.b - ret.first) < 0)
-        ret.second = ret.first;
-    else
-        ret.first = ret.second;
-    return ret;
+    auto [count, ts] = geometry_detail::circle_segment_parameters(c, l);
+    // 交点が存在することを要求する。1点の場合は同じ点を2回返す。
+    assert(count > 0);
+    Point d = l.b - l.a;
+    auto at = [&](Real t) {
+        if (t == 0) return l.a;
+        if (t == 1) return l.b;
+        return l.a + d * t;
+    };
+    return {at(ts[0]), at(ts[count == 2 ? 1 : 0])};
 }
 pair<Point,Point> crosspoint(const Circle &c1,const Circle &c2) {
     Real d = abs(c1.p - c2.p);

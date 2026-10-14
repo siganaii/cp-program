@@ -15,6 +15,8 @@ struct IncrementalConvexHull_Lower {
     int s = side(p);
     if (strict && s >= 0) return;
     if (!strict && s > 0) return;
+    // 登録済みの点では頂点・辺のコールバックも呼ばない。
+    if (!strict && s == 0 && S.find(p) != S.end()) return;
 
     // 点追加
     add_v(p);
@@ -31,7 +33,7 @@ struct IncrementalConvexHull_Lower {
         }
         auto a = *it;
         auto b = left.back();
-        T det = cross(b - a,p - a);
+        auto det = cross(b - a,p - a);
         if (strict && det > 0) break;
         if (!strict && det >= 0) break;
         left.emplace_back(a);
@@ -50,7 +52,7 @@ struct IncrementalConvexHull_Lower {
         }
         auto a = right.back();
         auto b = *it;
-        T det = cross(a - p,b - p);
+        auto det = cross(a - p,b - p);
         if (strict && det > 0) break;
         if (!strict && det >= 0) break;
         right.emplace_back(b);
@@ -95,7 +97,7 @@ struct IncrementalConvexHull_Lower {
     }
     auto l = prev(r);
     auto p1 = *l, p2 = *r;
-    T det = cross(p - p1,p2 - p1);
+    auto det = cross(p - p1,p2 - p1);
     if (det == 0) return 0;
     return (det > 0 ? -1 : 1);
   }
@@ -104,9 +106,10 @@ struct IncrementalConvexHull_Lower {
 template <typename T, bool strict = true>
 struct Incremental_ConvexHull {
   using P = PointBase<T>;
+  using C = typename P::C;
   IncrementalConvexHull_Lower<T, strict> LOWER, UPPER;
   int cnt_E;
-  T det_sum;
+  C det_sum;
   bool is_empty;
 
   Incremental_ConvexHull() : cnt_E(0), det_sum(0), is_empty(1) {}
@@ -117,9 +120,9 @@ struct Incremental_ConvexHull {
 
   template <typename REAL>
   REAL area() {
-    return det_sum * 0.5;
+    return static_cast<REAL>(det_sum) / REAL(2);
   }
-  T area_2() { return det_sum; }
+  C area_2() { return det_sum; }
 
   template <typename ADD_V, typename RM_V, typename ADD_E, typename RM_E>
   void add(PointBase<T> p, ADD_V add_v, RM_V rm_v, ADD_E add_e, RM_E rm_e) {
