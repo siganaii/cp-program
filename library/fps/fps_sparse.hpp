@@ -1,7 +1,7 @@
 #pragma once
 #include "formal-power-series.hpp"
 
-// g が sparse を仮定, f * g.inv() を計算
+// g が疎な多項式であると仮定し、f * g.inv() を計算する
 template <typename mint>
 FormalPowerSeries<mint> sparse_div(const FormalPowerSeries<mint>& f,
                                    const FormalPowerSeries<mint>& g,
@@ -155,5 +155,5 @@ FormalPowerSeries<mint> sparse_pow(const FormalPowerSeries<mint>& f,
 }
 
 /**
- * @brief sparse な形式的冪級数の演算
+ * @brief 疎な形式的冪級数の演算
  */

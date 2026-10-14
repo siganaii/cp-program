@@ -14,7 +14,7 @@ FormalPowerSeries<mint> mod_pow(int64_t k, const FormalPowerSeries<mint>& f,
 	if (k == 0) return result;
 	fps base = f % modulus;
 	if (k == 1) return base;
-	// Reduced factors have degree less than deg(modulus).
+	// 剰余を取った各因子の次数は deg(modulus) 未満になる
 	auto inv = modulus.rev().inv((int)modulus.size() - 1);
 	auto reduce = [&](fps poly) {
 		if (poly.size() >= modulus.size()) {

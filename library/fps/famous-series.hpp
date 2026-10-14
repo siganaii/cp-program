@@ -74,7 +74,8 @@ FormalPowerSeries<mint> Partition(int N, Binomial<mint> &) {
 
 template <typename mint>
 vector<mint> Montmort(int N) {
-  if (N <= 1) return {0};
+  if (N <= 0) return {};
+  if (N == 1) return {0};
   if (N == 2) return {0, 1};
   vector<mint> f(N);
   f[0] = 0, f[1] = 1;

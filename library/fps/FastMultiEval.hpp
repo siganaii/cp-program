@@ -59,5 +59,5 @@ vector<mint> FastMultiEval(const FormalPowerSeries<mint> &f,
 }
 
 /**
- * @brief Multipoint Evaluation(高速化版)
+ * @brief 多点評価（高速化版）
  */

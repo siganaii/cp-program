@@ -48,19 +48,19 @@ mint LinearRecurrence(long long k, FormalPowerSeries<mint> Q,FormalPowerSeries<m
         mint dw = mint(FormalPowerSeries<mint>::ntt_pr()).inverse().pow((mint::get_mod() - 1) / (2 * N));
         while (k) {
             mint inv2 = mint(2).inverse();
-            // even degree of Q(x)Q(-x)
+            // Q(x)Q(-x) の偶数次の係数
             T.resize(N);
             for (int i = 0; i < N; i++) T[i] = Q[(i << 1) | 0] * Q[(i << 1) | 1];
             S.resize(N);
             if (k & 1) {
-                // odd degree of P(x)Q(-x)
+                // P(x)Q(-x) の奇数次の係数
                 for (auto &i : btr) {
                     S[i] = (P[(i << 1) | 0] * Q[(i << 1) | 1] -P[(i << 1) | 1] * Q[(i << 1) | 0]) * inv2;
                     inv2 *= dw;
                 }
             } 
             else {
-                // even degree of P(x)Q(-x)
+                // P(x)Q(-x) の偶数次の係数
                 for (int i = 0; i < N; i++) {
                     S[i] = (P[(i << 1) | 0] * Q[(i << 1) | 1] + P[(i << 1) | 1] * Q[(i << 1) | 0]) * inv2;
                 }

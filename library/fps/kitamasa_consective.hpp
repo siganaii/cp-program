@@ -1,4 +1,7 @@
-// return A[i] if exists, otherwise 0
+#pragma once
+#include "mod_pow.hpp"
+
+// 添字 i が範囲内なら A[i]、範囲外なら 0 を返す
 template <typename mint>
 mint fps_get(const FormalPowerSeries<mint>& A, int i) {
     if (i < 0 || i >= (int)A.size()) return mint(0);
@@ -36,9 +39,9 @@ FormalPowerSeries<mint> fps_neg_x(FormalPowerSeries<mint> A) {
     return A;
 }
 
-// small r 用の愚直展開
-// return [x^l], ..., [x^{r-1}] P(x) / Q(x)
-// assumes 0 <= l <= r
+// r が小さい場合の愚直な展開
+// P(x) / Q(x) の x^l から x^{r-1} までの係数を返す
+// 0 <= l <= r を仮定する
 template <typename mint>
 FormalPowerSeries<mint> NaiveRangeRational(
     FormalPowerSeries<mint> P,
@@ -66,8 +69,10 @@ FormalPowerSeries<mint> NaiveRangeRational(
     return res;
 }
 
-// deg(P) < deg(Q) を仮定した区間版 Bostan-Mori
-// return [x^l], ..., [x^{r-1}] P(x) / Q(x)
+// deg(P) < deg(Q) を仮定した区間係数取得
+// P(x) / Q(x) の x^l から x^{r-1} までの係数を返す
+// l >= 0, d = deg(Q), w = r-l のとき O(M(d) log(l+1) + M(d+w))
+// M(n) は畳み込みの計算量
 template <typename mint>
 FormalPowerSeries<mint> RangeRationalProper(
     FormalPowerSeries<mint> P,
@@ -105,54 +110,28 @@ FormalPowerSeries<mint> RangeRationalProper(
         return NaiveRangeRational(P, Q, l, r);
     }
 
-    FormalPowerSeries<mint>::set_fft();
+    using fps = FormalPowerSeries<mint>;
+    assert(P.size() < Q.size());
+    const int d = (int)Q.size() - 1;
+    const int width = (int)(r - l);
 
-    // Q2(x) = Q(-x)
-    auto Q2 = fps_neg_x(Q);
-
-    // S(x) = P(x) Q(-x)
-    auto S = P * Q2;
-
-    // T(x) = Q(x) Q(-x) = V(x^2)
-    auto T = Q * Q2;
-
-    // V(x)
-    auto V = fps_even(T);
-
-    // P_even(x), P_odd(x)
-    auto Pe = fps_even(S);
-    auto Po = fps_odd(S);
-
-    // even index: i = 2m
-    // 2m in [l, r) <=> m in [ceil(l/2), ceil(r/2))
-    long long el = l / 2 + (l & 1);
-    long long er = r / 2 + (r & 1);
-
-    // odd index: i = 2m + 1
-    // 2m+1 in [l, r) <=> m in [floor(l/2), floor(r/2))
-    long long ol = l / 2;
-    long long orr = r / 2;
-
-    auto even_coef = RangeRationalProper(Pe, V, el, er);
-    auto odd_coef  = RangeRationalProper(Po, V, ol, orr);
-
-    FormalPowerSeries<mint> res(r - l);
-
-    int ei = 0;
-    int oi = 0;
-
-    for (long long i = l; i < r; i++) {
-        if ((i & 1) == 0) {
-            res[i - l] = even_coef[ei++];
-        } else {
-            res[i - l] = odd_coef[oi++];
-        }
+    // 開始位置が小さい場合は、必要な位置まで直接展開する
+    if (l <= d) {
+        auto coef = (P.pre((int)r) * Q.inv((int)r)).pre((int)r);
+        return fps(coef.begin() + l, coef.end());
     }
 
-    return res;
+    // h(x) = x^l mod rev(Q) とすると、漸化式から
+    // a[l+i] = sum_j h[j] * a[i+j] が成り立つ。これらの和を畳み込みでまとめて求める
+    auto h = mod_pow(l, fps{0, 1}, Q.rev());
+    h.resize(d);
+    const int terms = d + width - 1;
+    auto coef = (P * Q.inv(terms)).pre(terms);
+    auto product = coef * h.rev();
+    return fps(product.begin() + d - 1, product.begin() + terms);
 }
 
-// return [x^l], ..., [x^{r-1}] P(x) / Q(x)
+// P(x) / Q(x) の x^l から x^{r-1} までの係数を返す
 template <typename mint>
 FormalPowerSeries<mint> LinearRecurrenceRange(
     long long l,
@@ -170,7 +149,7 @@ FormalPowerSeries<mint> LinearRecurrenceRange(
 
     FormalPowerSeries<mint> ret(r - l, mint(0));
 
-    // improper fraction の多項式部分を先に処理
+    // 分子の次数が分母以上の場合は、多項式部分を先に処理する
     if ((int)P.size() >= (int)Q.size()) {
         auto R = P / Q;
         P -= R * Q;

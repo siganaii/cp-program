@@ -141,7 +141,7 @@ vector<mint> count_increase_sequences_with_upper_lower_bounds(Binomial<mint> &BC
         B[i - 1] = min(B[i], B[i - 1]);
     }
     if (A.back() >= B.back()) return res;
-    // Keep the output indexed by the original lower bound.
+    // 戻り値の添字は、補正前の下限を基準にする
     const int offset = A.back() - result_begin;
     // A[0] == 0 にする
     {
@@ -155,7 +155,7 @@ vector<mint> count_increase_sequences_with_upper_lower_bounds(Binomial<mint> &BC
     if (C.empty()){
         C.resize(B[0] - A[0], 1);
     }
-    // Tightening the upper bounds can remove impossible starting values.
+    // 上限の補正で選べなくなった開始値の重みを除く
     else C.resize(B[0] - A[0]);
     int l = 0;
     while (B[l] <= A.back()){

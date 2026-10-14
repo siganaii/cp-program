@@ -1,7 +1,7 @@
 #pragma once
 #include "library/modulo/binomial.hpp"
 
-// calculate F(x + a)
+// F(x + a) の係数を求める
 template <typename mint>
 FormalPowerSeries<mint> TaylorShift(FormalPowerSeries<mint> f, mint a,
                                     Binomial<mint>& C) {

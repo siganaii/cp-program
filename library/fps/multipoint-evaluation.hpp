@@ -112,5 +112,5 @@ vector<mint> MultipointEvaluation(const FormalPowerSeries<mint> &f,
 }
 
 /**
- * @brief Multipoint Evaluation
+ * @brief 多点評価
  */
