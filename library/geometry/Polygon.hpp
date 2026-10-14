@@ -359,12 +359,19 @@ pair<int, int> furthest_pair(const vector<PointBase<T>>& p) {
     int j = 1;
     for (int i = 0; i < n; i++) {
         int ni = (i + 1) % n;
-        auto edge = difference(p[I[ni]], p[I[i]]);
-        while (cross(edge, difference(p[I[(j + 1) % n]], p[I[j]])) > 0)
+        // 凸包と同様に、座標差分と外積の丸め誤差を補正して探索方向を判定する。
+        auto edge_cross = [&](int k) {
+            return geometry_detail::difference_cross(
+                p[I[i]], p[I[ni]], p[I[k]], p[I[(k + 1) % n]]);
+        };
+        auto turn = edge_cross(j);
+        while (turn > 0) {
             j = (j + 1) % n;
+            turn = edge_cross(j);
+        }
         upd(I[i], I[j]);
         upd(I[ni], I[j]);
-        if (cross(edge, difference(p[I[(j + 1) % n]], p[I[j]])) == 0) {
+        if (turn == 0) {
             upd(I[i], I[(j + 1) % n]);
             upd(I[ni], I[(j + 1) % n]);
         }
