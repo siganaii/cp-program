@@ -276,15 +276,97 @@ long double area(const Polygon& p) {
 // 各辺を円の内外で高々3区間に分ける。再帰を使わず O(N)。
 long double area(const Polygon& p, const Circle& c) {
     if (p.size() < 3 || c.r == 0) return 0;
-    bool inside = true;
+    bool inside = true, has_reference = false;
+    Point reference_a, reference_b;
+    Real reference_t = 0;
     for (const auto& v : p) {
         if (abs(v - c.p) > c.r) {
             inside = false;
-            break;
+        } else if (!has_reference || v < reference_a) {
+            reference_a = reference_b = v;
+            has_reference = true;
         }
     }
     // 円は凸なので、全頂点が内部なら多角形全体も内部にある。
     if (inside) return area(p);
+    if (!has_reference) {
+        // 円内の頂点がなければ、円と交わる辺上の垂線の足を基準にする。
+        // 辺の選択と向きをそろえ、開始頂点や列挙方向に依存させない。
+        for (int i = 0; i < (int)p.size(); i++) {
+            Point a = p[i], b = p[(i + 1) % p.size()];
+            if (b < a) swap(a, b);
+            if (a == b) continue;
+            if (has_reference && !(a < reference_a || (a == reference_a && b < reference_b))) continue;
+            Point d = b - a;
+            Real len = abs(d), along = dot(d / len, c.p - a);
+            if (along < 0 || along > len) continue;
+            if (abs(geometry_detail::line_cross(a, b, c.p)) / len > c.r) continue;
+            reference_a = a;
+            reference_b = b;
+            reference_t = clamp(along / len, Real(0), Real(1));
+            has_reference = true;
+        }
+    }
+    if (!has_reference) {
+        // 境界が円と交わらなければ、共通部分は円全体か空集合。
+        // 小さい円も区別できるよう、中心の内外判定にはEPSを使わない。
+        bool contains_center = false;
+        for (int i = 0; i < (int)p.size(); i++) {
+            Point a = p[i], b = p[(i + 1) % p.size()];
+            if (a.y > b.y) swap(a, b);
+            if (a.y <= c.p.y && c.p.y < b.y && geometry_detail::line_cross(a, b, c.p) < 0)
+                contains_center = !contains_center;
+        }
+        return contains_center ? copysignl(PI * c.r * c.r, area(p)) : 0;
+    }
+    // 基準点の座標を作ると、細い多角形の外へ丸められる場合がある。
+    // 元の端点との外積を補間し、基準点を辺上の点として扱う。
+    auto reference_cross = [&](const Point& a, const Point& b, const Point& origin) {
+        Real x = geometry_detail::difference_cross(a, b, origin, reference_a);
+        if (reference_t == 0) return x;
+        Real y = geometry_detail::difference_cross(a, b, origin, reference_b);
+        Real left = (1 - reference_t) * x, right = reference_t * y;
+        Real value = fmal(reference_t, y, left);
+        if (abs(value) >= (abs(left) + abs(right)) * 0.5L) return value;
+
+        // 外積同士が相殺するときだけ、積と和の丸め残差を保持して補間する。
+        // 長い辺と小さい円でも、各外積を先に丸めて小さい成分を失わない。
+        // 16個の積について、積と重み付けの残差を含めても高々64項。
+        array<Real, 64> terms{};
+        int count = 0;
+        auto append = [&](Real carry) {
+            if (carry == 0) return;
+            int size = 0;
+            for (int i = 0; i < count; i++) {
+                Real sum = carry + terms[i], v = sum - carry;
+                Real error = (carry - (sum - v)) + (terms[i] - v);
+                if (error != 0) terms[size++] = error;
+                carry = sum;
+            }
+            if (carry != 0) terms[size++] = carry;
+            count = size;
+        };
+        auto product = [&](Real u, Real v, Real weight) {
+            Real hi = u * v, lo = fmal(u, v, -hi);
+            for (Real part : {hi, lo}) {
+                Real scaled = part * weight;
+                append(scaled);
+                append(fmal(part, weight, -scaled));
+            }
+        };
+        auto weighted_cross = [&](const Point& from, const Point& to, Real weight) {
+            product(b.x, to.y, weight);   product(b.x, from.y, -weight);
+            product(a.x, to.y, -weight);  product(a.x, from.y, weight);
+            product(b.y, to.x, -weight);  product(b.y, from.x, weight);
+            product(a.y, to.x, weight);   product(a.y, from.x, -weight);
+        };
+        // cross(b-a, reference_a-origin) + t * cross(b-a, reference_b-reference_a)。
+        weighted_cross(origin, reference_a, 1);
+        weighted_cross(reference_a, reference_b, reference_t);
+        Real result = 0;
+        for (int i = 0; i < count; i++) result += terms[i];
+        return result;
+    };
     Real A = 0, correction = 0;
     auto add = [&](Real value) {
         Real next = A + value;
@@ -292,9 +374,6 @@ long double area(const Polygon& p, const Circle& c) {
             ? (A - next) + value : (value - next) + A;
         A = next;
     };
-    Point reference = p[0];
-    Point offset = reference - c.p;
-    if (abs(offset) > c.r) reference = c.p + offset * (c.r / abs(offset));
     auto arc_remainder = [](Real theta) {
         if (abs(theta) >= 0.1L) return theta - sinl(theta);
         // 小さい角度でも theta - sin(theta) の有効桁を失わないようにする。
@@ -312,15 +391,15 @@ long double area(const Polygon& p, const Circle& c) {
         Point u = a - c.p, v = b - c.p, d = b - a;
         Real la = abs(u), lb = abs(v), len = abs(d);
         // K は基準点から見た三角形の符号付き面積の2倍。
-        Real K = geometry_detail::line_cross(a, b, reference);
+        Real K = reference_cross(a, b, a);
         if (la <= c.r && lb <= c.r) {
             add(K);
             continue;
         }
-        // R = reference - c.p として、H = cross(u, v), X = cross(u, R), Y = cross(R, v)。
+        // R は円の中心から基準点へのベクトル。H = cross(u, v), X = cross(u, R), Y = cross(R, v)。
         Real H = geometry_detail::line_cross(a, b, c.p);
-        Real X = geometry_detail::difference_cross(c.p, a, c.p, reference);
-        Real Y = geometry_detail::difference_cross(c.p, reference, c.p, b);
+        Real X = reference_cross(c.p, a, c.p);
+        Real Y = -reference_cross(c.p, b, c.p);
         auto arc = [&](Real theta) { add(c.r * c.r * arc_remainder(theta)); };
         auto outside = [&]() {
             Real sa = c.r / la, sb = c.r / lb;
@@ -349,19 +428,28 @@ long double area(const Polygon& p, const Circle& c) {
         // 長い辺を小さい円で切る場合も、近いパラメータ同士を引かない。
         Real fraction = clamp((min(xb, extent) - max(xa, -extent)) / len, Real(0), Real(1));
         add(fraction * K);
-        Real S = geometry_detail::difference_cross(c.p, reference, a, b);
+        Real S = -reference_cross(a, b, c.p);
+        // 垂線の足までの比率と、そこから交点までの短い距離を分ける。
+        // 長い辺では交点までの比率を1値に丸めると円内の幅が消えてしまう。
+        auto clipped_cross = [&](Real along, Real endpoint_cross, Real t) {
+            // 交点が端点に近い場合は、短い区間の比率をそのまま使う。
+            if (extent > along * 0.5L) return fmal(t, S, -endpoint_cross);
+            Real center = along / len;
+            Real rest = (fmal(-center, len, along) - extent) / len;
+            return fmal(center, S, -endpoint_cross) + rest * S;
+        };
         if (xa < -extent) {
             Real t = clamp((-extent - xa) / len, Real(0), Real(1));
             Real scale = c.r / la, delta = (c.r - la) / la;
             add(scale * t * K);
-            add(delta * fmal(t, S, -X));
+            add(delta * clipped_cross(-xa, X, t));
             arc(atan2l(t * H, fmal(xa, -extent, h * h)));
         }
         if (xb > extent) {
             Real t = clamp((xb - extent) / len, Real(0), Real(1));
             Real scale = c.r / lb, delta = (c.r - lb) / lb;
             add(scale * t * K);
-            add(delta * fmal(t, S, -Y));
+            add(delta * clipped_cross(xb, Y, t));
             arc(atan2l(t * H, fmal(extent, xb, h * h)));
         }
     }
