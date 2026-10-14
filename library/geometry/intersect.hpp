@@ -47,6 +47,9 @@ bool intersect(const Circle &c, const Line &l) {
     return geometry_detail::circle_line_intersections(c, l).first != 0;
 }
 bool intersect(const Segment &s, const Segment &t) {
+    // 長さ0の線分は点として判定する。
+    if (s.a == s.b) return intersect(t, s.a);
+    if (t.a == t.b) return intersect(s, t.a);
     return ccw(s.a, s.b, t.a) * ccw(s.a, s.b, t.b) <= 0 && ccw(t.a, t.b, s.a) * ccw(t.a, t.b, s.b) <= 0;
 }
 namespace geometry_detail {

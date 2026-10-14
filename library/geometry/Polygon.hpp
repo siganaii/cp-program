@@ -127,26 +127,23 @@ int convex_contains(const Polygon& Q, const Point& p) {
         return dir * geometry_detail::line_side(Q[0], a, b);
     };
     int a = side(Q[1], p), b = side(Q.back(), p);
+    if (on_segment(Q[0], Q[1]) || on_segment(Q.back(), Q[0])) return ON;
+    // 扇形の境界付近では、端点周辺も含めて通常の内外判定にそろえる。
+    if (a == 0 || b == 0) return contains(Q, p);
     if (a < 0 || b > 0) return OUT;
-    if (a == 0) {
-        if (geometry_detail::cross_sign(Q[1] - Q[0], Q[2] - Q[0]) == 0)
-            return contains(Q, p);
-        return on_segment(Q[0], Q[1]) ? ON : OUT;
-    }
-    if (b == 0) {
-        if (geometry_detail::cross_sign(Q.back() - Q[0], Q[n - 2] - Q[0]) == 0)
-            return contains(Q, p);
-        return on_segment(Q[0], Q.back()) ? ON : OUT;
-    }
 
     int l = 1, r = n - 1;
     while (r - l > 1) {
         int m = (l + r) / 2;
-        if (side(Q[m], p) >= 0) l = m;
+        // 内部の対角線ではEPSを使わず、実際の向きから調べる辺を選ぶ。
+        if (dir * geometry_detail::cross_value(Q[m] - Q[0], p - Q[0]) >= 0) l = m;
         else r = m;
     }
+    // 頂点の近くでは、隣の辺の許容誤差内に入る場合もある。
+    if (on_segment(Q[l - 1], Q[l]) || on_segment(Q[l], Q[r])
+        || on_segment(Q[r], Q[(r + 1) % n])) return ON;
     int s = dir * geometry_detail::line_side(Q[l], Q[r], p);
-    return s < 0 ? OUT : s == 0 ? ON : IN;
+    return s <= 0 ? OUT : IN;
 }
 
 // 同一直線上で重なる・接する線分を併合する。
@@ -268,9 +265,11 @@ Polygon convex_cut(const Polygon& U, Line l) {
 
 // 符号付き面積。反時計回りで正、時計回りで負。
 long double area(const Polygon& p) {
+    if (p.size() < 3) return 0;
     Real A = 0;
-    for (int i = 0; i < (int)p.size(); i++)
-        A += cross(p[i], p[(i + 1) % p.size()]);
+    // 1頂点を原点に移し、大きな絶対座標同士の積による桁落ちを避ける。
+    for (int i = 1; i + 1 < (int)p.size(); i++)
+        A += geometry_detail::cross_value(p[i] - p[0], p[i + 1] - p[0]);
     return A * 0.5L;
 }
 

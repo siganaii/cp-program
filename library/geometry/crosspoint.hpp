@@ -12,6 +12,14 @@ Point crosspoint(const Line &l, const Line &m) {
     return {fmal(d.x, t, l.a.x), fmal(d.y, t, l.a.y)};
 }
 Point crosspoint(const Segment &l, const Segment &m) {
+    // 交点の存在を要求する。重なる場合は両方の線分に属する端点を返す。
+    if (parallel(l, m)) {
+        if (intersect(m, l.a)) return l.a;
+        if (intersect(m, l.b)) return l.b;
+        if (intersect(l, m.a)) return m.a;
+        if (intersect(l, m.b)) return m.b;
+        assert(false);
+    }
     return crosspoint(Line(l), Line(m));
 }
 pair<Point,Point> crosspoint(const Circle &c, const Line &l) {

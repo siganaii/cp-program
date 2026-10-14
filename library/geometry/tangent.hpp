@@ -2,7 +2,17 @@
 #include "library/geometry/geometry-base.hpp"
 #include "library/geometry/crosspoint.hpp"
 pair<Point, Point> tangent(const Circle &c1, const Point &p2) {
-    return crosspoint(c1, Circle(p2, sqrt(norm(c1.p - p2) - c1.r * c1.r)));
+    if (c1.r == 0) return {c1.p, c1.p};
+    Point v = p2 - c1.p;
+    Real d = abs(v);
+    // 円の外側または円周上の点を要求する。
+    assert(d > 0 && d >= c1.r - geometry_detail::radial_tolerance(d, c1.r));
+    Point e = v / d, n(-e.y, e.x);
+    Real ratio = min(Real(1), c1.r / d);
+    // 補助円との交点に変換せず、接点の中心線方向・垂直方向の成分を求める。
+    Point foot = c1.p + e * (c1.r * ratio);
+    Real h = c1.r * sqrtl(max(Real(0), ((d - c1.r) / d) * (1 + ratio)));
+    return {foot + n * h, foot - n * h};
 }
 Lines tangent(Circle c1, Circle c2) {
     Lines ret;
