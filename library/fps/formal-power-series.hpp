@@ -23,7 +23,7 @@ struct FormalPowerSeries : vector<mint> {
         (*this)[0] -= r;
         return *this;
     }
-    FPS &operator*=(const mint &v) {
+    FPS &operator*=(mint v) {
         for (int k = 0; k < (int)this->size(); k++) (*this)[k] *= v;
         return *this;
     }

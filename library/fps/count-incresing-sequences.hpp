@@ -1,7 +1,6 @@
 #pragma once
 #include "library/modulo/binomial.hpp"
 #include "library/ntt/ntt.hpp"
-NTT<mint> ntt;
 template<class mint>
 pair<vector<mint>, vector<mint>> count_square(vector<mint> L, vector<mint> D,Binomial<mint> &C){
     assert(!L.empty() && !D.empty());
@@ -19,6 +18,7 @@ pair<vector<mint>, vector<mint>> count_square(vector<mint> L, vector<mint> D,Bin
         if (sw) swap(R, D);
         return {R, D};
     }
+    static NTT<mint> ntt;
     auto cyclic_convolution = [&](vector<mint> f,vector<mint> g) {
         ntt.ntt(f);
         ntt.ntt(g);
@@ -132,15 +132,18 @@ vector<mint> count_increase_sequences_with_upper_lower_bounds(Binomial<mint> &BC
     assert(A.size() == B.size());
     assert(N > 0);
     assert(C.empty() || (int)C.size() == B[0] - A[0]);
+    const int result_begin = A.back();
+    vector<mint> res(max(0, B.back() - result_begin), 0);
     for (int i = 0; i < N - 1; i++){
         A[i + 1] = max(A[i], A[i + 1]);
     }
     for (int i = N - 1; i > 0; i--){
         B[i - 1] = min(B[i], B[i - 1]);
     }
-    if (A.back() >= B.back()) return {};
+    if (A.back() >= B.back()) return res;
+    // Keep the output indexed by the original lower bound.
+    const int offset = A.back() - result_begin;
     // A[0] == 0 にする
-    vector<mint> res(B.back() - A.back(), 0);
     {
         int tmp = A[0];
         for (int i = 0; i < N; i++){
@@ -204,10 +207,10 @@ vector<mint> count_increase_sequences_with_upper_lower_bounds(Binomial<mint> &BC
     for (int i = A.back(); i < B[l]; i++) C[i - A.back()] = C[i];
     C.resize(B[l] - A.back());
     auto [R, U] = count_square(C,D,BC);
-    res = R;
+    auto out = copy(R.begin(), R.end(), res.begin() + offset);
     vector<int> nB(N - l);
     for (int i = 0; i < N - l; i++) nB[i] = B[i + l] - B[l];
     R = count_increase_sequences_with_upper_bounds(BC,nB,U);
-    for (auto x : R) res.push_back(x);
+    copy(R.begin(), R.end(), out);
     return res;
 }
