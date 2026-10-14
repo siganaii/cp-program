@@ -147,14 +147,14 @@ AreaNumber<Count> area_atan2(AreaNumber<Count> y, AreaNumber<Count> x) {
 template <class T>
 pair<T, Real> circle_polygon_integral(const Polygon& polygon, const Circle& circle) {
     using P = PointBase<T>;
-    T radius(circle.r), sum(0), correction(0);
+    T radius(circle.r), area_sum(0), correction(0);
     Real scale_sum = 0;
     auto add = [&](T value) {
         if constexpr (is_same_v<T, Real>) {
-            T next = sum + value;
-            correction += abs(sum) >= abs(value) ? (sum - next) + value : (value - next) + sum;
-            sum = next;
-        } else sum = sum + value;
+            T next = area_sum + value;
+            correction += abs(area_sum) >= abs(value) ? (area_sum - next) + value : (value - next) + area_sum;
+            area_sum = next;
+        } else area_sum = area_sum + value;
     };
     auto sector = [&](const P& a, const P& b) {
         add(radius * radius * area_atan2(cross(a, b), dot(a, b)));
@@ -185,6 +185,6 @@ pair<T, Real> circle_polygon_integral(const Polygon& polygon, const Circle& circ
         if (xa < -extent) sector(a, e * (-extent) - normal * h);
         if (xb > extent) sector(e * extent - normal * h, b);
     }
-    return {(sum + correction) / T(2), scale_sum * (32 * numeric_limits<Real>::epsilon())};
+    return {(area_sum + correction) / T(2), scale_sum * (32 * numeric_limits<Real>::epsilon())};
 }
 }
