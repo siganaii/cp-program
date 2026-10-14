@@ -7,11 +7,20 @@ struct CHTMonotone {
     void clear() {deq.clear();}
     inline int sgn(T x) {return x == 0 ? 0 : (x < 0 ? -1 : 1);}
     inline bool check(const pair<T,T> &a,const pair<T,T> &b,const pair<T,T> &c) {
-        if(b.second == a.second || c.second == b.second) return sgn(b.first - a.first) * sgn(c.second - b.second) >= sgn(b.second - a.second) * sgn(c.first - b.first);
-        if(is_integral<T>::value) {
-            return (b.second - a.second) / (a.first - b.first) >= (c.second - b.second) / (b.first - c.first);
+        if constexpr(is_integral<T>::value) {
+            // 傾きは a.first > b.first > c.first。64-bit 整数の差も拡張してから取る。
+            __int128 x = (__int128)b.second - a.second;
+            __int128 y = (__int128)c.second - b.second;
+            if ((x < 0) != (y < 0)) return x >= 0;
+            // 絶対値の積は unsigned 128-bit に収め、符号付き積の overflow を避ける。
+            __uint128_t lhs = (__uint128_t)(x < 0 ? -x : x) *
+                              (__uint128_t)((__int128)b.first - c.first);
+            __uint128_t rhs = (__uint128_t)(y < 0 ? -y : y) *
+                              (__uint128_t)((__int128)a.first - b.first);
+            return x < 0 ? lhs <= rhs : lhs >= rhs;
         }
         else {
+            if(b.second == a.second || c.second == b.second) return sgn(b.first - a.first) * sgn(c.second - b.second) >= sgn(b.second - a.second) * sgn(c.first - b.first);
             return (b.first - a.first) * sgn(c.second - b.second) / abs(b.second - a.second) >= (c.first - b.first) * sgn(b.second - a.second) / abs(c.second - b.second);
         }
     }

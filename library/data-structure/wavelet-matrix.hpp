@@ -41,16 +41,18 @@ struct WaveletMatrix {
   using u64 = uint64_t;
 
   int n, lg;
+  T max_value = 0;
   vector<T> a;
   vector<bit_vector> bv;
   vector<vector<T>> pref;
   vector<T> orig_pref;
 
-  WaveletMatrix(u32 _n) : n(max<u32>(_n, 1)), a(n) {}
+  WaveletMatrix(u32 _n) : n(_n), a(n) {}
   WaveletMatrix(const vector<T>& _a) : n(_a.size()), a(_a) { build(); }
 
   __attribute__((optimize("O3"))) void build() {
-    lg = __lg(max<T>(*max_element(begin(a), end(a)), 1)) + 1;
+    max_value = a.empty() ? T(0) : *max_element(begin(a), end(a));
+    lg = a.empty() ? 0 : __lg(max<T>(max_value, 1)) + 1;
 
     if constexpr (EnableSum) {
       orig_pref.assign(n + 1, 0);
@@ -123,8 +125,8 @@ struct WaveletMatrix {
   }
 
   int range_freq(int l, int r, T upper) const {
-    if (upper <= 0) return 0;
-    if (upper >= (T(1) << lg)) return r - l;
+    if (l >= r || upper <= 0) return 0;
+    if (upper > max_value) return r - l;
 
     int ret = 0;
     for (int h = lg - 1; h >= 0; --h) {
@@ -148,7 +150,7 @@ struct WaveletMatrix {
   T range_sum(int l, int r, T upper) const {
     static_assert(EnableSum, "range_sum requires WaveletMatrix<T, true>");
     if (l >= r || upper <= 0) return 0;
-    if (upper >= (T(1) << lg)) return orig_pref[r] - orig_pref[l];
+    if (upper > max_value) return orig_pref[r] - orig_pref[l];
 
     T ret = 0;
     for (int h = lg - 1; h >= 0; --h) {
@@ -175,7 +177,7 @@ struct WaveletMatrix {
     if (k <= 0 || l >= r) return T(0);
     if (k >= r - l) return orig_pref[r] - orig_pref[l];
 
-    T ret = 0;
+    T ret = 0, value = 0;
     for (int h = lg - 1; h >= 0; --h) {
       u32 l0 = bv[h].rank0(l), r0 = bv[h].rank0(r);
       u32 one_cnt = (r - l) - (r0 - l0);
@@ -187,10 +189,11 @@ struct WaveletMatrix {
         k -= one_cnt;
         l = l0, r = r0;
       } else {
+        value |= T(1) << h;
         l = l1, r = r1;
       }
     }
-    return ret;
+    return ret + value * T(k);
   }
 
   T prev_value(int l, int r, T upper) const {

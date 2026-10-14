@@ -26,6 +26,7 @@ struct FenwickTree{
     }
     void init(int size) {
         N = size + 2;
+        total = T{};
         data.assign(N + 1,{});
     }
     // get sum of [0,k]

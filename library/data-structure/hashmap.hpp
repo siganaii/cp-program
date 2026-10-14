@@ -244,9 +244,13 @@ struct HashMapBase {
     nxt++;
     this->deleted_flag[it.i] = true;
     if (shrink_rate(s)) {
-      Data d = data[nxt.i];
+      if (nxt == this->end()) {
+        shrink();
+        return this->end();
+      }
+      Key key = data_to_key(data[nxt.i]);
       shrink();
-      it = find(data_to_key(d));
+      nxt = find(key);
     }
     return nxt;
   }

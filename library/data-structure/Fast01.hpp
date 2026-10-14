@@ -5,28 +5,51 @@ struct Fast01 {
     int N, B, SB;
     vector<u64> dat; // 実データ
     vector<u64> sup; // dat の各 block が非空か
+    vector<vector<u64>> upper; // sup より上の階層。最上位は 1 word。
+
+private:
+    vector<u64>& level(int h) {
+        return h == 0 ? dat : (h == 1 ? sup : upper[h - 2]);
+    }
+    const vector<u64>& level(int h) const {
+        return h == 0 ? dat : (h == 1 ? sup : upper[h - 2]);
+    }
+    int height() const { return 2 + (int)upper.size(); }
+
+public:
 
     Fast01() : N(0), B(0), SB(0) {}
     Fast01(int n) { build(n); }
 
     void build(int n) {
         N = n;
-        B = (N + 63) >> 6;
+        B = (N >> 6) + ((N & 63) != 0);
         SB = (B + 63) >> 6;
         dat.assign(B, 0ULL);
         sup.assign(SB, 0ULL);
+        upper.clear();
+        for (int sz = SB; sz > 1;) {
+            sz = (sz + 63) >> 6;
+            upper.emplace_back(sz, 0ULL);
+        }
     }
 
     void rebuild_sup() {
-        fill(sup.begin(), sup.end(), 0ULL);
-        for (int i = 0; i < B; i++) {
-            if (dat[i]) sup[i >> 6] |= 1ULL << (i & 63);
+        for (int h = 1; h < height(); h++) {
+            const auto& lower = level(h - 1);
+            auto& higher = level(h);
+            fill(higher.begin(), higher.end(), 0ULL);
+            for (int i = 0; i < (int)lower.size(); i++) {
+                if (lower[i]) higher[i >> 6] |= 1ULL << (i & 63);
+            }
         }
     }
 
     void set_all_zero() {
-        fill(dat.begin(), dat.end(), 0ULL);
-        fill(sup.begin(), sup.end(), 0ULL);
+        for (int h = 0; h < height(); h++) {
+            auto& v = level(h);
+            fill(v.begin(), v.end(), 0ULL);
+        }
     }
 
     void set_all_one() {
@@ -48,25 +71,24 @@ struct Fast01 {
     }
 
     inline void set1(int k) {
-        int b = k >> 6;
-        int r = k & 63;
-
-        u64 old = dat[b];
-        dat[b] |= 1ULL << r;
-
-        if (!old && dat[b]) {
-            sup[b >> 6] |= 1ULL << (b & 63);
+        for (int h = 0; h < height(); h++) {
+            auto& v = level(h);
+            int b = k >> 6;
+            u64 old = v[b];
+            v[b] |= 1ULL << (k & 63);
+            if (old) break;
+            k = b;
         }
     }
 
     inline void set0(int k) {
-        int b = k >> 6;
-        int r = k & 63;
-
-        dat[b] &= ~(1ULL << r);
-
-        if (!dat[b]) {
-            sup[b >> 6] &= ~(1ULL << (b & 63));
+        for (int h = 0; h < height(); h++) {
+            auto& v = level(h);
+            int b = k >> 6;
+            u64 old = v[b];
+            v[b] &= ~(1ULL << (k & 63));
+            if (!old || v[b]) break;
+            k = b;
         }
     }
 
@@ -77,38 +99,24 @@ struct Fast01 {
 
     // k 以上で最小の 1 の位置
     // 存在しないなら N
+    // 更新・next・prev は O(log_64(max(N, 2)))。
     int next(int k) const {
         if (k < 0) k = 0;
         if (k >= N) return N;
 
-        int b = k >> 6;
-        int r = k & 63;
-
-        u64 x = dat[b] & (~0ULL << r);
-        if (x) {
-            int res = (b << 6) + __builtin_ctzll(x);
-            return res < N ? res : N;
-        }
-
-        int sb = b >> 6;
-        int br = (b & 63) + 1;
-
-        // br == 64 のときに << 64 してはいけない
-        if (br < 64) {
-            u64 y = sup[sb] & (~0ULL << br);
-            if (y) {
-                int nb = (sb << 6) + __builtin_ctzll(y);
-                int res = (nb << 6) + __builtin_ctzll(dat[nb]);
-                return res < N ? res : N;
+        for (int h = 0; h < height(); h++) {
+            const auto& v = level(h);
+            int b = k >> 6;
+            if (b >= (int)v.size()) return N;
+            u64 x = v[b] >> (k & 63);
+            if (x) {
+                k += __builtin_ctzll(x);
+                for (int j = h - 1; j >= 0; j--) {
+                    k = (k << 6) + __builtin_ctzll(level(j)[k]);
+                }
+                return k;
             }
-        }
-
-        for (int s = sb + 1; s < SB; s++) {
-            if (sup[s]) {
-                int nb = (s << 6) + __builtin_ctzll(sup[s]);
-                int res = (nb << 6) + __builtin_ctzll(dat[nb]);
-                return res < N ? res : N;
-            }
+            k = b + 1;
         }
 
         return N;
@@ -121,38 +129,19 @@ struct Fast01 {
         if (N == 0) return -1;
         if (k >= N) k = N - 1;
 
-        int b = k >> 6;
-        int r = k & 63;
-
-        u64 x = dat[b];
-        if (r != 63) {
-            x &= (1ULL << (r + 1)) - 1;
-        }
-
-        if (x) {
-            return (b << 6) + 63 - __builtin_clzll(x);
-        }
-
-        int sb = b >> 6;
-        int br = b & 63;
-
-        u64 y;
-        if (br == 0) {
-            y = 0ULL;
-        } else {
-            y = sup[sb] & ((1ULL << br) - 1);
-        }
-
-        if (y) {
-            int nb = (sb << 6) + 63 - __builtin_clzll(y);
-            return (nb << 6) + 63 - __builtin_clzll(dat[nb]);
-        }
-
-        for (int s = sb - 1; s >= 0; s--) {
-            if (sup[s]) {
-                int nb = (s << 6) + 63 - __builtin_clzll(sup[s]);
-                return (nb << 6) + 63 - __builtin_clzll(dat[nb]);
+        for (int h = 0; h < height(); h++) {
+            if (k < 0) return -1;
+            const auto& v = level(h);
+            int b = k >> 6;
+            u64 x = v[b] & (~0ULL >> (63 - (k & 63)));
+            if (x) {
+                k = (b << 6) + 63 - __builtin_clzll(x);
+                for (int j = h - 1; j >= 0; j--) {
+                    k = (k << 6) + 63 - __builtin_clzll(level(j)[k]);
+                }
+                return k;
             }
+            k = b - 1;
         }
 
         return -1;
