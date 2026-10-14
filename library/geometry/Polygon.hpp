@@ -8,8 +8,7 @@ template <typename T>
 bool is_convex(const vector<PointBase<T>>& p) {
     int n = p.size(), dir = 0;
     for (int i = 0; i < n; i++) {
-        int d = geometry_detail::cross_sign(difference(p[(i + 1) % n], p[i]),
-                                            difference(p[(i + 2) % n], p[(i + 1) % n]));
+        int d = geometry_detail::orientation_sign(p[i], p[(i + 1) % n], p[(i + 2) % n]);
         if (d == 0) continue;
         if (dir != 0 && dir != d) return false;
         dir = d;
@@ -120,7 +119,7 @@ int convex_contains(const Polygon& Q, const Point& p) {
         return ccw(a, b, p) == 0;
     };
     if (n == 2) return on_segment(Q[0], Q[1]) ? ON : OUT;
-    int dir = geometry_detail::cross_sign(Q[1] - Q[0], Q.back() - Q[0]);
+    int dir = geometry_detail::orientation_sign(Q[0], Q[1], Q.back());
     if (dir == 0) return contains(Q, p);
 
     auto side = [&](const Point& a, const Point& b) {
@@ -136,7 +135,7 @@ int convex_contains(const Polygon& Q, const Point& p) {
     while (r - l > 1) {
         int m = (l + r) / 2;
         // 内部の対角線ではEPSを使わず、実際の向きから調べる辺を選ぶ。
-        if (dir * geometry_detail::cross_value(Q[m] - Q[0], p - Q[0]) >= 0) l = m;
+        if (dir * geometry_detail::line_cross(Q[0], Q[m], p) >= 0) l = m;
         else r = m;
     }
     // 頂点の近くでは、隣の辺の許容誤差内に入る場合もある。
@@ -160,11 +159,10 @@ void merge_segments(vector<Segment>& segs) {
     vector<bool> used(S.size());
     for (int i = 0; i < (int)S.size(); i++) {
         if (used[i]) continue;
-        Point d = S[i].b - S[i].a;
         vector<Segment> group;
         for (int j = i; j < (int)S.size(); j++) {
             if (used[j]) continue;
-            if (geometry_detail::cross_sign(d, S[j].b - S[j].a) != 0) continue;
+            if (!parallel(S[i], S[j])) continue;
             if (geometry_detail::line_side(S[i].a, S[i].b, S[j].a) != 0) continue;
             used[j] = true;
             group.push_back(S[j]);
@@ -215,9 +213,7 @@ vector<vector<int>> segment_arrangement(vector<Segment>& segs,
         on[i].push_back(segs[i].a);
         on[i].push_back(segs[i].b);
         for (int j = i + 1; j < N; j++) {
-            Point p1 = segs[i].b - segs[i].a;
-            Point p2 = segs[j].b - segs[j].a;
-            if (geometry_detail::cross_sign(p1, p2) == 0) continue;
+            if (parallel(segs[i], segs[j])) continue;
             if (intersect(segs[i], segs[j])) {
                 Point p = crosspoint(segs[i], segs[j]);
                 ps.push_back(p);

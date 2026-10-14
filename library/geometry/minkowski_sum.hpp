@@ -24,8 +24,7 @@ vector<PointBase<T>> minkowski_sum(vector<PointBase<T>> A, vector<PointBase<T>> 
         if (V.size() > 1 && V.front() == V.back()) V.pop_back();
         int n = V.size();
         for (int i = 0; i < n; i++) {
-            int c = turn(difference(V[(i + 1) % n], V[i]),
-                         difference(V[(i + 2) % n], V[(i + 1) % n]));
+            int c = geometry_detail::orientation_sign(V[i], V[(i + 1) % n], V[(i + 2) % n]);
             if (c == 0) continue;
             if (c < 0) reverse(V.begin(), V.end());
             break;
@@ -77,9 +76,10 @@ vector<PointBase<T>> minkowski_sum(vector<PointBase<T>> A, vector<PointBase<T>> 
         while (ANS.size() >= 2) {
             P a = ANS[ANS.size() - 2];
             P b = ANS[ANS.size() - 1];
-            if (turn(difference(b, a), difference(p, a)) != 0) break;
-            auto d = dot(difference(b, a), difference(p, b));
-            if (d < 0) break;
+            int c = geometry_detail::orientation_sign(a, b, p);
+            if (c > 0) break;
+            // 頂点和の丸めで生じた時計回りの折れ返しも取り除く。
+            if (c == 0 && dot(difference(b, a), difference(p, b)) < 0) break;
             ANS.pop_back();
         }
         ANS.emplace_back(p);

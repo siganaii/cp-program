@@ -52,12 +52,6 @@ bool intersect(const Segment &s, const Segment &t) {
     if (t.a == t.b) return intersect(s, t.a);
     return ccw(s.a, s.b, t.a) * ccw(s.a, s.b, t.b) <= 0 && ccw(t.a, t.b, s.a) * ccw(t.a, t.b, s.b) <= 0;
 }
-namespace geometry_detail {
-// 方向の平行判定には長さのEPSを使わず、外積の丸め誤差を見込む。
-bool parallel_directions(const Point& d, const Point& e) {
-    return cross_sign(d, e) == 0;
-}
-}
 bool intersect(const Ray &r, const Point &p) {
     Point d = r.b - r.a;
     Real len = abs(d);
@@ -76,7 +70,7 @@ bool intersect(const Ray &r, const Line &l) {
     Real len_d = abs(d), len_e = abs(e);
     if (len_e == 0) return intersect(r, l.a);
     if (len_d == 0) return intersect(l, r.a);
-    if (geometry_detail::parallel_directions(d, e)) {
+    if (parallel(r, l)) {
         return geometry_detail::line_side(r.a, r.b, l.a) == 0;
     }
     // 方向は正規化せず、パラメータ側のEPSを長さで換算する。
@@ -93,7 +87,7 @@ bool intersect(const Ray &r, const Segment &s) {
     Real len_d = abs(d), len_e = abs(e);
     if (len_d == 0) return intersect(s, r.a);
     if (len_e == 0) return intersect(r, s.a);
-    if (geometry_detail::parallel_directions(d, e)) {
+    if (parallel(r, s)) {
         if (geometry_detail::line_side(r.a, r.b, s.a) != 0) return false;
         return intersect(r, s.a) || intersect(r, s.b);
     }
@@ -114,7 +108,7 @@ bool intersect(const Ray &r, const Ray &s) {
     Real len_d = abs(d), len_e = abs(e);
     if (len_d == 0) return intersect(s, r.a);
     if (len_e == 0) return intersect(r, s.a);
-    if (geometry_detail::parallel_directions(d, e)) {
+    if (parallel(r, s)) {
         if (geometry_detail::line_side(r.a, r.b, s.a) != 0) return false;
         return intersect(r, s.a) || intersect(s, r.a);
     }

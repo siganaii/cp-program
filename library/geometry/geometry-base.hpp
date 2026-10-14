@@ -17,15 +17,15 @@ bool equals(const PointBase<T>& a, const PointBase<U>& b) {
     return equals(a.x, b.x) && equals(a.y, b.y);
 }
 namespace geometry_detail {
-// 外積・内積の符号には、距離のEPSではなく演算の丸め誤差を使う。
+// 方向の符号にはEPSを使わず、FMAで積の丸め誤差を補正する。
 template <typename T>
 int cross_sign(const PointBase<T>& a, const PointBase<T>& b) {
-    auto c = cross(a, b);
     if constexpr (is_floating_point_v<T>) {
-        auto tol = 16 * numeric_limits<T>::epsilon()
-            * (abs(a.x * b.y) + abs(a.y * b.x));
-        return c > tol ? 1 : c < -tol ? -1 : 0;
+        T p = a.y * b.x;
+        T c = fma(a.x, b.y, -p) + fma(-a.y, b.x, p);
+        return c > 0 ? 1 : c < 0 ? -1 : 0;
     } else {
+        auto c = cross(a, b);
         return c > 0 ? 1 : c < 0 ? -1 : 0;
     }
 }
@@ -53,18 +53,31 @@ Real difference_cross(const Point& a, const Point& b,
 Real line_cross(const Point& a, const Point& b, const Point& p) {
     return difference_cross(a, b, a, p);
 }
+// 頂点の向きは、差分を作るときの丸め誤差も補正して判定する。
+template <typename T>
+int orientation_sign(const PointBase<T>& a, const PointBase<T>& b,
+                     const PointBase<T>& c) {
+    if constexpr (is_floating_point_v<T>) {
+        Real v = line_cross(Point(a.x, a.y), Point(b.x, b.y), Point(c.x, c.y));
+        return v > 0 ? 1 : v < 0 ? -1 : 0;
+    } else {
+        return cross_sign(difference(b, a), difference(c, a));
+    }
+}
 Real radial_tolerance(Real a, Real b) {
     return EPS + 16 * numeric_limits<Real>::epsilon() * max(abs(a), abs(b));
 }
 // 点と直線の位置関係。外積を方向ベクトルの長さで割り、距離で比較する。
 int line_side(const Point& a, const Point& b, const Point& p) {
-    Point d = b - a, v = p - a;
-    Real len = abs(d);
+    // 端点を逆順にしても同じ計算で距離を求め、最後に向きだけを反転する。
+    bool reversed = b < a;
+    const Point& from = reversed ? b : a;
+    const Point& to = reversed ? a : b;
+    Real len = abs(to - from);
     if (len == 0) return 0;
-    Real h = cross_value(d, v) / len;
-    Real tol = EPS + 16 * numeric_limits<Real>::epsilon()
-        * (abs(d.x * v.y) + abs(d.y * v.x)) / len;
-    return h > tol ? 1 : h < -tol ? -1 : 0;
+    Real h = line_cross(from, to, p) / len;
+    int side = h > EPS ? 1 : h < -EPS ? -1 : 0;
+    return reversed ? -side : side;
 }
 }
 Real radian_to_degree(Real r) { return (r * 180.0 / PI); }
@@ -129,7 +142,7 @@ struct Ray : Line {
     Ray(Point a, Point b) : Line(a, b) {}
 };
 bool parallel(const Line &a, const Line &b) {
-    return geometry_detail::cross_sign(a.b - a.a, b.b - b.a) == 0;
+    return geometry_detail::difference_cross(a.a, a.b, b.a, b.b) == 0;
 }
 bool orthogonal(const Line &a, const Line &b) {
     Point d = a.b - a.a, e = b.b - b.a;
