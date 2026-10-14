@@ -202,17 +202,35 @@ void merge_segments(vector<Segment>& segs) {
 // ps に既存の点がある場合、それらも頂点候補に含める。
 // 浮動小数点の同一交点の統合は厳密比較。
 // 重なり合う線分を渡すと多重辺が生じる場合がある。
+// 通常はN本の線分とP個の既存点に対して O((N^2 + NP + P) log(N + P + 2))。
+// 近接する別頂点や重なる線分がある場合は、従来の全点判定が最大 O(N(N^2 + P)) 加わる。
 vector<vector<int>> segment_arrangement(vector<Segment>& segs,
                                          vector<Point>& ps) {
     int N = segs.size();
     vector<vector<Point>> on(N);
+    vector<bool> overlapping(N);
     for (int i = 0; i < N; i++) {
         ps.emplace_back(segs[i].a);
         ps.emplace_back(segs[i].b);
         on[i].push_back(segs[i].a);
         on[i].push_back(segs[i].b);
+    }
+    sort(ps.begin(), ps.end());
+    ps.erase(unique(ps.begin(), ps.end()), ps.end());
+    // 既存点と全線分の端点だけは、各線分への所属を調べる。
+    // 重なる線分の途中の端点や、長さ0の線分もここで登録する。
+    for (int i = 0; i < N; i++) {
+        for (const Point& p : ps) {
+            if (intersect(segs[i], p)) on[i].push_back(p);
+        }
+    }
+    for (int i = 0; i < N; i++) {
         for (int j = i + 1; j < N; j++) {
-            if (parallel(segs[i], segs[j])) continue;
+            if (parallel(segs[i], segs[j])) {
+                // 重なる線分では、相手側で計算した交点も含めて従来どおり分割する。
+                if (intersect(segs[i], segs[j])) overlapping[i] = overlapping[j] = true;
+                continue;
+            }
             if (intersect(segs[i], segs[j])) {
                 Point p = crosspoint(segs[i], segs[j]);
                 ps.push_back(p);
@@ -225,14 +243,42 @@ vector<vector<int>> segment_arrangement(vector<Segment>& segs,
     sort(ps.begin(), ps.end());
     ps.erase(unique(ps.begin(), ps.end()), ps.end());
     int M = ps.size();
+    // 同じ交点でも丸め方によって別頂点になる場合がある。
+    // 近接頂点があれば、算出元以外の線分への所属も従来どおり調べる。
+    bool close_vertices = false;
+    set<pair<Real, Real>> nearby;
+    for (int i = 0, left = 0; i < M; i++) {
+        while (ps[i].x - ps[left].x > EPS) {
+            nearby.erase({ps[left].y, ps[left].x});
+            ++left;
+        }
+        auto it = nearby.lower_bound({ps[i].y - EPS, -numeric_limits<Real>::infinity()});
+        if (it != nearby.end() && it->first <= ps[i].y + EPS) {
+            close_vertices = true;
+            break;
+        }
+        nearby.emplace(ps[i].y, ps[i].x);
+    }
     vector<vector<int>> g(M);
     for (int i = 0; i < N; i++) {
-        vector<bool> known(M);
-        for (const auto& p : on[i])
-            known[lower_bound(ps.begin(), ps.end(), p) - ps.begin()] = true;
+        // 所属が分かっている点だけを並べ、全交点の走査を避ける。
+        auto& points = on[i];
+        sort(points.begin(), points.end());
+        points.erase(unique(points.begin(), points.end()), points.end());
         vector<int> vec;
-        for (int j = 0; j < M; j++) {
-            if (known[j] || intersect(segs[i], ps[j])) vec.emplace_back(j);
+        vec.reserve(points.size());
+        for (const Point& p : points)
+            vec.push_back(lower_bound(ps.begin(), ps.end(), p) - ps.begin());
+        if (close_vertices || overlapping[i]) {
+            vector<int> expanded;
+            int k = 0;
+            for (int j = 0; j < M; j++) {
+                if (k < (int)vec.size() && vec[k] == j) {
+                    expanded.push_back(j);
+                    ++k;
+                } else if (intersect(segs[i], ps[j])) expanded.push_back(j);
+            }
+            vec = move(expanded);
         }
         for (int j = 1; j < (int)vec.size(); j++) {
             g[vec[j - 1]].push_back(vec[j]);
