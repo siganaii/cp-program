@@ -36,16 +36,21 @@ struct LinkCutBase : Splay {
         expose(u);
         return expose(v);
     }
+    // xから根に向かってk番目の頂点。0始まりで、範囲外ならnullptr。
     Ptr get_kth(Ptr x, int k) {
         expose(x);
+        if (k < 0 || k >= this->size(x)) return nullptr;
         while (x) {
             this->push(x);
-            if (x->r && x->r->sz > k) {
+            if (x->r && x->r->cnt > k) {
                 x = x->r;
             } 
             else {
-                if (x->r) k -= x->r->sz;
-                if (k == 0) return x;
+                if (x->r) k -= x->r->cnt;
+                if (k == 0) {
+                    this->splay(x);
+                    return x;
+                }
                 k -= 1;
                 x = x->l;
             }
@@ -54,7 +59,13 @@ struct LinkCutBase : Splay {
     }
     Ptr get_root(Ptr x) {
         expose(x);
-        while (x->l) this->push(x), x = x->l;
+        while (true) {
+            this->push(x);
+            if (!x->l) break;
+            x = x->l;
+        }
+        // 探索した頂点を根に上げ、同じ長い経路を繰り返し走査しない。
+        this->splay(x);
         return x;
     }
     Ptr get_parent(Ptr x) {
@@ -62,11 +73,12 @@ struct LinkCutBase : Splay {
         Ptr p = x->l;
         if(p == nullptr) return nullptr;
         while (true) {
-        this->push(p);
-        if (p->r == nullptr) return p;
-        p = p->r;
+            this->push(p);
+            if (p->r == nullptr) break;
+            p = p->r;
         }
-        exit(1);
+        this->splay(p);
+        return p;
     }
     virtual void set_key(Ptr t, const decltype(Node::key)& key) {
         this->splay(t);

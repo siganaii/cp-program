@@ -36,25 +36,26 @@ struct SplayTreeBase {
         while (t->r) push(t), t = t->r;
         return t;
     }
+    // 根tの木を先頭k要素と残りに分割する。0 <= k <= size(t) を要求する。
     pair<Ptr, Ptr> split(Ptr t, int k) {
         if (!t) return {nullptr, nullptr};
         if (k == 0) return {nullptr, t};
         if (k == count(t)) return {t, nullptr};
-        push(t);
-        if (k <= count(t->l)) {
-            auto x = split(t->l, k);
-            t->l = x.second;
-            t->p = nullptr;
-            if (x.second) x.second->p = t;
-            return {x.first, update(t)};
-        } 
-        else {
-            auto x = split(t->r, k - count(t->l) - 1);
-            t->r = x.first;
-            t->p = nullptr;
-            if (x.first) x.first->p = t;
-            return {update(t), x.second};
+        // 右側の先頭を根に上げて切り離す。深い木でも再帰しない。
+        while (true) {
+            push(t);
+            int left = count(t->l);
+            if (k < left) t = t->l;
+            else if (k > left) {
+                k -= left + 1;
+                t = t->r;
+            } else break;
         }
+        splay(t);
+        Ptr l = t->l;
+        t->l = nullptr;
+        l->p = nullptr;
+        return {l, update(t)};
     }
     Ptr merge(Ptr l, Ptr r) {
         if (!l && !r) return nullptr;
