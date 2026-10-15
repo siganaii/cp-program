@@ -95,7 +95,8 @@ struct SplayTreeBase {
     virtual void push(Ptr t) = 0;
     Ptr build(const vector<Ptr> &v) { return build(0, v.size(), v); }
     Ptr build(int l, int r, const vector<Ptr> &v) {
-        if (l + 1 >= r) return v[l];
+        if (l == r) return nullptr;
+        if (l + 1 == r) return v[l];
         return merge(build(l, (l + r) >> 1, v), build((l + r) >> 1, r, v));
     }
     inline int pos(Ptr t) {
