@@ -2,7 +2,7 @@
 namespace inner {
     using i64 = long long;
     using u64 = unsigned long long;
-    using u128 = __int128_t;
+    using u128 = __uint128_t;
     template <int BASE_NUM = 2>
     struct Hash: array<u64, BASE_NUM> {
         using array<u64, BASE_NUM>::operator[];
@@ -58,12 +58,12 @@ namespace inner {
             return *this;
         }
 
-        Hash operator+(const Hash &r) { return Hash(*this) += r; }
-        Hash operator+(const i64 &r) { return Hash(*this) += r; }
-        Hash operator-(const Hash &r) { return Hash(*this) -= r; }
-        Hash operator-(const i64 &r) { return Hash(*this) -= r; }
-        Hash operator*(const Hash &r) { return Hash(*this) *= r; }
-        Hash operator*(const i64 &r) { return Hash(*this) *= r; }
+        Hash operator+(const Hash &r) const { return Hash(*this) += r; }
+        Hash operator+(const i64 &r) const { return Hash(*this) += r; }
+        Hash operator-(const Hash &r) const { return Hash(*this) -= r; }
+        Hash operator-(const i64 &r) const { return Hash(*this) -= r; }
+        Hash operator*(const Hash &r) const { return Hash(*this) *= r; }
+        Hash operator*(const i64 &r) const { return Hash(*this) *= r; }
         Hash operator-() const {
             Hash res;
             for (int i = 0; i < n; i++) {
@@ -87,7 +87,7 @@ namespace inner {
             }
             return res;
         }
-        Hash pow(long long e) {
+        Hash pow(long long e) const {
             Hash a{*this}, res{Hash::set(1)};
             for (; e; a *= a, e >>= 1) {
                 if (e & 1) res *= a;
@@ -110,16 +110,22 @@ namespace inner {
     private:
         static u64 modpow(u64 a, u64 b) {
             u64 r = 1;
-            for (a %= md; b; a = modmul(a, a), b >>= 1) r = modmul(r, a);
+            for (a %= md; b; a = modmul(a, a), b >>= 1) {
+                if (b & 1) r = modmul(r, a);
+            }
             return r;
         }
         static bool isPrimitive(u64 x) {
-            for (auto &d : vector<u64>{2, 3, 5, 7, 11, 13, 31, 41, 61, 151, 331, 1321})
-            if (modpow(x, (md - 1) / d) <= 1) return false;
+            constexpr u64 factors[] = {2, 3, 5, 7, 11, 13, 31, 41, 61, 151, 331, 1321};
+            for (u64 d : factors) {
+                if (modpow(x, (md - 1) / d) <= 1) return false;
+            }
             return true;
         }
         static inline constexpr u64 cast(const long long &a) {
-            return a < 0 ? a + md : a;
+            // 符号付きの剰余を取り、最小値も含めて [0, md) に正規化する。
+            i64 r = a % static_cast<i64>(md);
+            return r < 0 ? r + static_cast<i64>(md) : r;
         }
         static inline constexpr u64 modmul(const u64 &a, const u64 &b) {
             u128 ret = u128(a) * b;
