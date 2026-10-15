@@ -1,15 +1,19 @@
 #pragma once
+#include <cmath>
+#include <type_traits>
 template <class T,T(*zero)(),T(*one)(),T(*Add)(T,T),T(*Mul)(T,T)>
 struct Matrix {
     vector<vector<T>> A;
+    // 行が0本の場合の列数を保持する。
+    int empty_width = 0;
 
     Matrix() = default;
-    Matrix(int n, int m) : A(n, vector<T>(m, zero())) {}
-    Matrix(int n) : A(n, vector<T>(n, zero())){};
+    Matrix(int n, int m) : A(n, vector<T>(m, zero())), empty_width(m) {}
+    Matrix(int n) : Matrix(n, n) {};
 
     int H() const { return A.size(); }
 
-    int W() const { return A[0].size(); }
+    int W() const { return A.empty() ? empty_width : A[0].size(); }
 
     int size() const { return A.size(); }
 
@@ -50,16 +54,19 @@ struct Matrix {
             for (int k = 0; k < p; k++)
                 for (int j = 0; j < m; j++) C[i][j] = Add(C[i][j],Mul((*this)[i][k],B[k][j]));
         A.swap(C);
+        empty_width = m;
         return (*this);
     }
 
     Matrix &operator^=(long long k) {
+        assert(H() == W());
         Matrix B = Matrix::I(H());
         while (k > 0) {
             if (k & 1) B *= *this;
-            *this *= *this;
             k >>= 1LL;
+            if(k) *this *= *this;
         }
+        empty_width = B.W();
         A.swap(B.A);
         return (*this);
     }
@@ -73,7 +80,7 @@ struct Matrix {
     Matrix operator^(const long long k) const { return (Matrix(*this) ^= k); }
 
     bool operator==(const Matrix &B) const {
-        assert(H() == B.H() && W() == B.W());
+        if(H() != B.H() || W() != B.W()) return false;
         for (int i = 0; i < H(); i++) for (int j = 0; j < W(); j++) {
             if (A[i][j] != B[i][j]) return false;
         }
@@ -81,11 +88,7 @@ struct Matrix {
     }
 
     bool operator!=(const Matrix &B) const {
-        assert(H() == B.H() && W() == B.W());
-        for (int i = 0; i < H(); i++) for (int j = 0; j < W(); j++) {
-            if (A[i][j] != B[i][j]) return true;
-        }
-        return false;
+        return !(*this == B);
     }
 
     friend ostream &operator<<(ostream &os, const Matrix &p) {
@@ -107,8 +110,12 @@ struct Matrix {
             int idx = -1;
             for (int j = i; j < W(); j++) {
                 if (B[j][i] != 0) {
-                    idx = j;
-                    break;
+                    if constexpr (is_floating_point<T>::value) {
+                        if(idx == -1 || std::abs(B[j][i]) > std::abs(B[idx][i])) idx = j;
+                    } else {
+                        idx = j;
+                        break;
+                    }
                 }
             }
             if (idx == -1) return 0;

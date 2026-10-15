@@ -17,6 +17,8 @@ struct Count_Eulerian_Trail {
         for(int i = 0;i < n;++i) {
             tot += CE.outdeg[i];
         }
+        // 辺がない場合は、空の経路を1通りと数える。
+        if(tot == 0) return 1;
         int st = -1, ed = -1;
         for(int i = 0;i < n;++i) if(CE.outdeg[i] != CE.indeg[i]) {
             if(abs(CE.outdeg[i] - CE.indeg[i]) > 1) {

@@ -17,14 +17,7 @@ pair<int, T> GaussEliminationArray(MatrixArray<T, H, W> &a,
     T det = T(1);
 
     for (int j = 0; j < pivot_end; j++) {
-        int idx = -1;
-
-        for (int i = rank; i < H; i++) {
-            if (a[i][j] != T(0)) {
-                idx = i;
-                break;
-            }
-        }
+        int idx = MatrixArray<T, H, W>::choose_pivot(a, rank, j);
 
         if (idx == -1) {
             det = T(0);

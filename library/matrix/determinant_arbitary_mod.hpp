@@ -1,4 +1,5 @@
 #pragma once
+#include "library/matrix/matrix.hpp"
 template <typename mint>
 mint determinant_arbitrary_mod(Matrix<mint> a) {
   int n = a.size();

@@ -28,6 +28,8 @@ struct Count_Euler_Circuit {
         }
         int idx = 0;
         for(int i = 0;i < n;++i) if(seen[i] == 1) seen[i] = idx++;
+        // 辺がない場合は、空の巡回路を1通りと数える。
+        if(idx == 0) return 1;
         MatrixTree<mint,true> MT(idx);
         for (int i = 0; i < n; i++) if (seen[i] != -1) {
             for (int j = 0; j < n; j++) if (seen[j] != -1) {

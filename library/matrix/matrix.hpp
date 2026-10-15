@@ -1,12 +1,16 @@
 #pragma once
+#include <cmath>
+#include <type_traits>
 template <class T>
 struct Matrix {
     vector<vector<T>> A;
+    // 行が0本の場合の列数を保持する。
+    int empty_width = 0;
     Matrix() = default;
-    Matrix(int n, int m) : A(n, vector<T>(m, T())) {}
-    Matrix(int n) : A(n, vector<T>(n, T())){};
+    Matrix(int n, int m) : A(n, vector<T>(m, T())), empty_width(m) {}
+    Matrix(int n) : Matrix(n, n) {};
     int H() const { return A.size(); }
-    int W() const { return A.empty() ? 0 : A[0].size(); }
+    int W() const { return A.empty() ? empty_width : A[0].size(); }
     int size() const { return A.size(); }
     inline const vector<T> &operator[](int k) const { return A[k]; }
     inline vector<T> &operator[](int k) { return A[k]; }
@@ -38,6 +42,7 @@ struct Matrix {
             }
         }
         A.swap(C);
+        empty_width = m;
         return (*this);
     }
     Matrix &operator^=(long long k) {
@@ -45,9 +50,10 @@ struct Matrix {
         Matrix B = Matrix::I(H());
         while (k > 0) {
             if (k & 1) B *= *this;
-            *this *= *this;
             k >>= 1LL;
+            if(k) *this *= *this;
         }
+        empty_width = B.W();
         A.swap(B.A);
         return (*this);
     }
@@ -79,7 +85,7 @@ struct Matrix {
     static int choose_pivot(const Matrix<T2> &mtr, int h, int c) noexcept {
         int piv = -1;
         for (int j = h; j < mtr.H(); j++) {
-            if (mtr.get[j][c] && (piv < 0 || abs(mtr[j][c]) > abs(mtr[piv][c])))
+            if (mtr[j][c] != T2(0) && (piv < 0 || std::abs(mtr[j][c]) > std::abs(mtr[piv][c])))
                 piv = j;
         }
         return piv;
@@ -97,13 +103,7 @@ struct Matrix {
         int n = H();
         T ret = T(1);
         for (int i = 0; i < n; i++) {
-            int idx = -1;
-            for (int j = i; j < n; j++) {
-                if (B[j][i] != T(0)) {
-                    idx = j;
-                    break;
-                }
-            }
+            int idx = choose_pivot(B, i, i);
             if (idx == -1) return T(0);
             if (i != idx) {
                 ret *= T(-1);

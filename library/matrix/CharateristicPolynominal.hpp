@@ -1,4 +1,5 @@
 #pragma once
+#include "library/matrix/matrix.hpp"
 // calculate det(a - xI)
 // det(xI - a) = (-1)^n det(a - XI)
 template <typename mint>

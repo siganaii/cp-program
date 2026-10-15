@@ -20,7 +20,7 @@ struct MatrixTree {
     //全ての点から根に行ける場合は、is_start = false
     T calc(int root = -1,bool is_start = true) {
         if(root == -1) root = 0;
-        Matrix<mint> M(n-1);
+        Matrix<T> M(n-1);
         for(int i = 0;i < n;++i) {
             if(i == root) continue;
             for(int j = 0;j < n;++j) {

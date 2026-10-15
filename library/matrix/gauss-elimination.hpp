@@ -1,5 +1,5 @@
 #pragma once
-#include "library/matrix/matrix-array.hpp"
+#include "library/matrix/matrix.hpp"
 // {rank, det(非正方行列の場合は未定義)} を返す
 // 掃き出しまでしたい場合は、GaussElimination(a,-1,true)
 template <typename T>
@@ -10,13 +10,7 @@ pair<int, T> GaussElimination(Matrix<T> &a, int pivot_end = -1,
     if (pivot_end == -1) pivot_end = W;
     T det = 1;
     for (int j = 0; j < pivot_end; j++) {
-		int idx = -1;
-		for (int i = rank; i < H; i++) {
-			if (a[i][j] != T(0)) {
-				idx = i;
-				break;
-			}
-		}
+		int idx = Matrix<T>::choose_pivot(a, rank, j);
 		if (idx == -1) {
 			det = 0;
 			continue;

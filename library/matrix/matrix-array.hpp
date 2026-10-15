@@ -1,4 +1,6 @@
 #pragma once
+#include <cmath>
+#include <type_traits>
 template<typename T,int H,int W>
 struct MatrixArray {
     using Array = array<array<T,W>,H>;
@@ -53,8 +55,8 @@ struct MatrixArray {
         MatrixArray B = MatrixArray::I();
         while(k > 0) {
             if(k & 1) B *= *this;
-            *this *= *this;
             k >>= 1LL;
+            if(k) *this *= *this;
         }
         A.swap(B.A);
         return (*this);
@@ -88,18 +90,24 @@ struct MatrixArray {
         }
         return(os);
     }
+    static int choose_pivot(const MatrixArray &mat, int h, int c, int row_end = H) {
+        int pivot = -1;
+        for(int i = h; i < row_end; i++) {
+            if(mat[i][c] == T(0)) continue;
+            if constexpr (is_floating_point<T>::value) {
+                if(pivot == -1 || std::abs(mat[i][c]) > std::abs(mat[pivot][c])) pivot = i;
+            } else {
+                return i;
+            }
+        }
+        return pivot;
+    }
     T determinant(int n = -1) {
         if(n == -1) n = H;
         MatrixArray B(*this);
         T ret = 1;
         for(int i = 0;i < n;i++) {
-            int idx = -1;
-            for(int j = i;j < n;j++) {
-                if(B[j][i] != 0) {
-                    idx = j;
-                    break;
-                }
-            }
+            int idx = choose_pivot(B, i, i, n);
             if(idx == -1) return 0;
             if(i != idx) {
                 ret *= T(-1);
