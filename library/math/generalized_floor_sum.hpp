@@ -11,7 +11,14 @@ i128 sum1_i128(i128 n) {
 }
 
 i128 sum2_i128(i128 n) {
-    return n * (n - 1) * (2 * n - 1) / 6;
+    // 先に2と3で割り、乗算途中だけが128bitを超えることを避ける。
+    i128 a = n, b = n - 1, c = 2 * n - 1;
+    if(a % 2 == 0) a /= 2;
+    else b /= 2;
+    if(a % 3 == 0) a /= 3;
+    else if(b % 3 == 0) b /= 3;
+    else c /= 3;
+    return a * b * c;
 }
 // 0 <= n, 1 <= m, 0 <= a, 0 <= b を想定
 FloorSum2 floor_sum2(long long n, long long m, long long a, long long b) {
@@ -19,12 +26,13 @@ FloorSum2 floor_sum2(long long n, long long m, long long a, long long b) {
         if (n == 0) return {0, 0, 0};
         i128 N = n;
         i128 S1 = sum1_i128(N); 
-        i128 S2 = sum2_i128(N); 
         long long qa = a / m;
         long long qb = b / m;
         long long ra = a % m;
         long long rb = b % m;
         if (qa != 0 || qb != 0) {
+            // iの一次項がない場合、二乗和は使わない。
+            i128 S2 = qa == 0 ? 0 : sum2_i128(N);
             auto g = dfs(dfs, n, m, ra, rb);
             i128 A = qa;
             i128 B = qb;

@@ -11,8 +11,8 @@ struct floor_prod {
         S res = e();
         while (k) {
             if (k & 1) res = op(res, a);
-            a = op(a, a);
             k >>= 1;
+            if (k) a = op(a, a);
         }
         return res;
     }
