@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <type_traits>
+#include "library/matrix/elimination-utils.hpp"
 template<typename T,int H,int W>
 struct MatrixArray {
     using Array = array<array<T,W>,H>;
@@ -106,23 +107,27 @@ struct MatrixArray {
         if(n == -1) n = H;
         MatrixArray B(*this);
         T ret = 1;
+        matrix_internal::EliminationTolerance<T> tolerance(B, n, n);
         for(int i = 0;i < n;i++) {
             int idx = choose_pivot(B, i, i, n);
             if(idx == -1) return 0;
             if(i != idx) {
                 ret *= T(-1);
                 swap(B[i],B[idx]);
+                tolerance.swap_rows(i, idx);
             }
             ret *= B[i][i];
             T inv = T(1) / B[i][i];
+            T inv_scale = tolerance.quotient_scale(inv, B[i][i], T(0), i, i);
             for(int j = 0;j < n;j++) {
-                B[i][j] *= inv;
+                tolerance.multiply(B[i][j], i, j, inv, inv_scale);
             }
             for(int j = i+1;j < n;j++) {
                 T a = B[j][i];
+                T a_scale = tolerance.entry_scale(j, i);
                 if(a == 0) continue;
                 for(int k = i;k < n;k++) {
-                    B[j][k] -= B[i][k] * a;
+                    tolerance.subtract_product(B[j][k], B[i][k], a, a_scale, j, k, i);
                 }
             }
         }

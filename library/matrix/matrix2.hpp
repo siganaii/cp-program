@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <type_traits>
+#include "library/matrix/elimination-utils.hpp"
 template <class T,T(*zero)(),T(*one)(),T(*Add)(T,T),T(*Mul)(T,T)>
 struct Matrix {
     vector<vector<T>> A;
@@ -106,6 +107,7 @@ struct Matrix {
         Matrix B(*this);
         assert(H() == W());
         T ret = 1;
+        matrix_internal::EliminationTolerance<T> tolerance(B, H(), W());
         for (int i = 0; i < H(); i++) {
             int idx = -1;
             for (int j = i; j < W(); j++) {
@@ -122,17 +124,20 @@ struct Matrix {
             if (i != idx) {
                 ret *= T(-1);
                 swap(B[i], B[idx]);
+                tolerance.swap_rows(i, idx);
             }
             ret *= B[i][i];
             T inv = T(1) / B[i][i];
+            T inv_scale = tolerance.quotient_scale(inv, B[i][i], T(0), i, i);
             for (int j = 0; j < W(); j++) {
-                B[i][j] *= inv;
+                tolerance.multiply(B[i][j], i, j, inv, inv_scale);
             }
             for (int j = i + 1; j < H(); j++) {
                 T a = B[j][i];
+                T a_scale = tolerance.entry_scale(j, i);
                 if (a == 0) continue;
                 for (int k = i; k < W(); k++) {
-                    B[j][k] -= B[i][k] * a;
+                    tolerance.subtract_product(B[j][k], B[i][k], a, a_scale, j, k, i);
                 }
             }
         }

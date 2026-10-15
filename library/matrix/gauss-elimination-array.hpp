@@ -15,6 +15,7 @@ pair<int, T> GaussEliminationArray(MatrixArray<T, H, W> &a,
 
     int rank = 0;
     T det = T(1);
+    matrix_internal::EliminationTolerance<T> tolerance(a, H, W);
 
     for (int j = 0; j < pivot_end; j++) {
         int idx = MatrixArray<T, H, W>::choose_pivot(a, rank, j);
@@ -27,14 +28,16 @@ pair<int, T> GaussEliminationArray(MatrixArray<T, H, W> &a,
         if (rank != idx) {
             det = -det;
             swap(a[rank], a[idx]);
+            tolerance.swap_rows(rank, idx);
         }
 
         det *= a[rank][j];
 
         if (diagonalize && a[rank][j] != T(1)) {
             T coeff = T(1) / a[rank][j];
+            T coeff_scale = tolerance.quotient_scale(coeff, a[rank][j], T(0), rank, j);
             for (int k = j; k < W; k++) {
-                a[rank][k] *= coeff;
+                tolerance.multiply(a[rank][k], rank, k, coeff, coeff_scale);
             }
         }
 
@@ -45,8 +48,9 @@ pair<int, T> GaussEliminationArray(MatrixArray<T, H, W> &a,
 
             if (a[i][j] != T(0)) {
                 T coeff = a[i][j] / a[rank][j];
+                T coeff_scale = tolerance.quotient_scale(coeff, a[rank][j], tolerance.entry_scale(i, j), rank, j);
                 for (int k = j; k < W; k++) {
-                    a[i][k] -= a[rank][k] * coeff;
+                    tolerance.subtract_product(a[i][k], a[rank][k], coeff, coeff_scale, i, k, rank);
                 }
             }
         }
