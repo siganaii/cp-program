@@ -21,12 +21,12 @@ map<long long,int> Mertens(long long N) {
     }
     vector<int> B(K+1);
     for(int i = 1;i <= K;i++) B[i] = b[i] + B[i-1];
-    vector<int> B2(L+1,1);
+    vector<long long> B2(L+1,1);
     for(int i = L;i >= 1;i--) {
         long long NI = N / i;
         int M = int(sqrt(NI));
         for(int j = 1;j <= M;j++) {
-            int NIJ = NI / j;
+            long long NIJ = NI / j;
             if(j > 1) {
                 if(NIJ <= K) B2[i] -= B[NIJ];
                 else B2[i] -= B2[i * j];

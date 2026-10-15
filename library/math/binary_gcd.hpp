@@ -46,10 +46,13 @@ u128 binary_gcd128(u128 a, u128 b) {
 }  // namespace BinaryGCDImpl
 
 long long binary_gcd(long long a, long long b) {
-  return BinaryGCDImpl::binary_gcd(abs(a), abs(b));
+  using u64 = unsigned long long;
+  // 最小の負数も扱えるよう、絶対値は符号なし型で求める。
+  return BinaryGCDImpl::binary_gcd(a < 0 ? -u64(a) : u64(a),
+                                 b < 0 ? -u64(b) : u64(b));
 }
 __int128_t binary_gcd128(__int128_t a, __int128_t b) {
-  if (a < 0) a = -a;
-  if (b < 0) b = -b;
-  return BinaryGCDImpl::binary_gcd128(a, b);
+  using u128 = __uint128_t;
+  return BinaryGCDImpl::binary_gcd128(a < 0 ? -u128(a) : u128(a),
+                                    b < 0 ? -u128(b) : u128(b));
 }

@@ -19,21 +19,21 @@ int64_t mod_log(int64_t a, int64_t b, int64_t p) {
     if (b % g) return (r == b) ? f : -1;
     b /= g;
     p /= g;
-    (r *= (a / g)) %= p;
+    r = __int128_t(r) * (a / g) % p;
   }
   if (p == 1) return f;
   int64_t ir = inv(r, p);
-  (b *= ir) %= p;
+  b = __int128_t(b) * ir % p;
   int64_t k = 0, ak = 1;
   unordered_map<int64_t, int64_t> baby;
-  for (; k * k < p; ++k) {
+  for (; __int128_t(k) * k < p; ++k) {
     if(baby.find(ak) == baby.end()) baby[ak] = k;
-    (ak *= a) %= p;
+    ak = __int128_t(ak) * a % p;
   }
   int64_t iak = inv(ak, p);
   for (int64_t i = 0; i < k; ++i) {
     if (baby.find(b) != baby.end()) return f + i * k + baby[b];
-    (b *= iak) %= p;
+    b = __int128_t(b) * iak % p;
   }
   return -1;
 }

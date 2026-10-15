@@ -16,7 +16,7 @@ struct floor_prod {
         }
         return res;
     }
-    S solve(ull n, ull m, ull a, ull b, S x, S y) const {
+    S solve(ull n, ull m, ull a, u128 b, S x, S y) const {
         assert(m > 0);
         x = op(x, pow_monoid(y, a / m));
         a %= m;
@@ -28,7 +28,7 @@ struct floor_prod {
         }
         ull q = ull(y_max / m);
         ull r = ull(y_max % m);
-        return op(op(op(prefix,solve(q - 1,a,m,m + a - b - 1,y,x)),y),pow_monoid(x, r / a));
+        return op(op(op(prefix,solve(q - 1,a,m,u128(m) + a - b - 1,y,x)),y),pow_monoid(x, r / a));
     }
 
     S operator()(ull n, ull m, ull a, ull b) const {

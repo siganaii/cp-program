@@ -46,5 +46,11 @@ long long floor_sum(long long n, long long m, long long a, long long b) {
 //count x : (ax + b mod m) < yr, 0 <= x < xr
 long long mod_affine_range_counting(long long a,long long b,long long m,long long xr,long long yr) {
     assert(0 <= yr && yr <= m);
+    assert(1 <= m && m < (1LL << 32));
+    // 剰余だけに依存するため、加算や床和の計算前に係数を正規化する。
+    a %= m;
+    if(a < 0) a += m;
+    b %= m;
+    if(b < 0) b += m;
     return floor_sum(xr, m, a, b + m) - floor_sum(xr, m, a, b + m - yr);
 }

@@ -15,7 +15,7 @@ i128 sum2_i128(i128 n) {
 }
 // 0 <= n, 1 <= m, 0 <= a, 0 <= b を想定
 FloorSum2 floor_sum2(long long n, long long m, long long a, long long b) {
-    auto dfs = [&](auto&& dfs, long long n, long long m, long long a, long long b) -> FloorSum2 {
+    auto dfs = [&](auto&& dfs, long long n, long long m, long long a, i128 b) -> FloorSum2 {
         if (n == 0) return {0, 0, 0};
         i128 N = n;
         i128 S1 = sum1_i128(N); 
@@ -47,7 +47,7 @@ FloorSum2 floor_sum2(long long n, long long m, long long a, long long b) {
         if (k == 0) {
             return {0, 0, 0};
         }
-        long long nb = m - b + a - 1;
+        i128 nb = m - b + a - 1;
         auto g = dfs(dfs, k, a, m, nb);
         i128 K = k;
         FloorSum2 res;

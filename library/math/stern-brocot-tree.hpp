@@ -34,7 +34,7 @@ struct SternBrocotTreeNode {
     for (const Int &d : _seq) {
       assert(d != 0);
       if (d > 0) go_right(d);
-      if (d < 0) go_left(d);
+      if (d < 0) go_left(-d);
     }
     assert(seq == _seq);
   }
@@ -113,7 +113,7 @@ struct SternBrocotTreeNode {
     return os;
   }
   friend bool operator<(const Node &lhs, const Node &rhs) {
-    return lhs.x * rhs.y < rhs.x * lhs.y;
+    return __int128_t(lhs.x) * rhs.y < __int128_t(rhs.x) * lhs.y;
   }
   friend bool operator==(const Node &lhs, const Node &rhs) {
     return lhs.x == rhs.x and lhs.y == rhs.y;
