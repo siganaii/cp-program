@@ -4,7 +4,7 @@
 //橋がないグラフに分解
 //groups それぞれのグループの頂点が入る
 //comp その点が属するグループが入る
-//tree 橋となる辺だけを残した木になる
+//tree 橋となる辺だけを残した森になる
 template<typename G>
 struct TwoEdgeConnectedComponents {
     const G &g;
@@ -29,8 +29,15 @@ struct TwoEdgeConnectedComponents {
     };
     int operator[](const int &k) const{return comp[k];}
     void dfs(int i,int p) {
-        if(p >= 0 && low.ord[p] >= low.low[i]) comp[i] = comp[p];
-        else comp[i] = k++;
-        for(auto &d:g[i]) if(comp[d] == -1) dfs(d,i);
+        vector<pair<int,int>> st{{i, p}};
+        while(!st.empty()) {
+            auto [v, par] = st.back();
+            st.pop_back();
+            if(par >= 0 && low.ord[par] >= low.low[v]) comp[v] = comp[par];
+            else comp[v] = k++;
+            // LowLink と同じ DFS 木をたどり、橋を越えるときに成分を分ける。
+            for(auto it = low.dfstree[v].rbegin(); it != low.dfstree[v].rend(); ++it)
+                st.emplace_back(*it, v);
+        }
     }
 };

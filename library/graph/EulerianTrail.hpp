@@ -24,8 +24,13 @@ struct EulerianTrail {
         assert(0 <= idx && idx < M);
         return es[idx];
     }
-    // pair<頂点の順番，辺の順番>
+    // pair<頂点の順番，辺の順番>。辺を消費せず、繰り返し呼び出せる。
+    // 空グラフ・不正な開始点・オイラー路がない場合は {{},{}}。
+    // 頂点があり辺がない場合は {{start},{}}（start=-1 なら頂点0）。
     pair<vector<int>,vector<int>> enumerate_eulerian_trail(int start = -1) {
+        used_edge.assign(M, 0);
+        fill(used_vertex.begin(), used_vertex.end(), 0);
+        if(g.empty() || start < -1 || start >= (int)g.size()) return {{},{}};
         if(start == -1) {
             if(directed) {
                 start = max_element(deg.begin(),deg.end()) - deg.begin();
@@ -46,13 +51,15 @@ struct EulerianTrail {
             }
         }
         if(M == 0) {
+            used_vertex[start] = 1;
             return {{start},{}};
         }
         //辞書順最小
         // for(int i = 0;i < g.size();i++) {
         //     sort(g[i].begin(),g[i].end(),greater());
         // }
-        used_edge.assign(M,0);
+        vector<size_t> remaining(g.size());
+        for(size_t i = 0; i < g.size(); ++i) remaining[i] = g[i].size();
         vector<pair<int,int>> st;
         vector<int> ord_edge,ord_vertex,D(g.size());
         st.emplace_back(start,-1);
@@ -60,14 +67,13 @@ struct EulerianTrail {
         while(!st.empty()) {
             auto [idx,edge_idx] = st.back();
             used_vertex[idx] = 1;
-            if(g[idx].empty()) {
+            if(remaining[idx] == 0) {
                 ord_edge.emplace_back(edge_idx);
                 ord_vertex.emplace_back(idx);
                 st.pop_back();
             }
             else {
-                auto e = g[idx].back();
-                g[idx].pop_back();
+                auto e = g[idx][--remaining[idx]];
                 if(used_edge[e.second]) continue;
                 used_edge[e.second] = 1;
                 st.emplace_back(e);

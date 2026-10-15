@@ -24,7 +24,7 @@ vector<vector<int>> to_cycles(int N) {
 }
 // 偶数頂点の無向完全グラフをマッチングに分解
 // 辺彩色しているといってもよい
-// このうちどの 2 個を選んでも、ハミルトンサイクルになる。
+// 異なる2個の和は頂点素な閉路の集合になるが、単一のハミルトンサイクルとは限らない。
 vector<vector<pair<int,int>>> to_matchings(int N) {
     assert(N > 0 && N % 2 == 0);
     vector<vector<pair<int,int>>> res(N - 1);

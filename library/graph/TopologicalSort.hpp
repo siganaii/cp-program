@@ -3,23 +3,28 @@
 template<typename T>
 vector<int>TopologicalSort(T &g) {
     int N = g.size();
-    vector<int> marked(N),tmp(N),v;
-    auto visit = [&](auto &f,int i) -> bool {
-        if(tmp[i] == 1) return false;
-        if(marked[i] == 0) {
-            tmp[i] = 1;
-            for(auto &e:g[i]) {
-                if(f(f,e) == false) return false;
-            }
-            marked[i] = 1;
-            v.push_back(i);
-            tmp[i] = 0;
-        }
-        return true;
-    };
+    // 0: 未訪問、1: 探索中、2: 探索終了
+    vector<int> state(N),v;
+    vector<pair<int, size_t>> st;
     for(int i = 0;i < N;i++) {
-        if(marked[i] == 0) {
-            if(visit(visit,i) == false) return vector<int>();
+        if(state[i]) continue;
+        state[i] = 1;
+        st.emplace_back(i, 0);
+        while(!st.empty()) {
+            int cur = st.back().first;
+            auto &next = st.back().second;
+            if(next == g[cur].size()) {
+                state[cur] = 2;
+                v.push_back(cur);
+                st.pop_back();
+                continue;
+            }
+            int to = g[cur][next++];
+            if(state[to] == 1) return {};
+            if(state[to] == 0) {
+                state[to] = 1;
+                st.emplace_back(to, 0);
+            }
         }
     }
     reverse(v.begin(),v.end());

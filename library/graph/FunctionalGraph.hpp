@@ -89,13 +89,13 @@ struct FunctionalGraph {
             }
         }
         vector<int> path;
-        auto dfs = [&](auto& dfs, int v) -> void {
-            path.emplace_back(v);
-            for (auto&& [w, k]: query[v]) { res[w] = path[(int)path.size() - 1 - k]; }
-            for (auto&& e: G[v]) dfs(dfs, e);
-            path.pop_back();
-        };
-        for (auto&& e: G[N]) { dfs(dfs, e); }
+        // HLD の DFS 順では、深さに合わせて縮めると祖先の列が残る。
+        for(int v: hld.ord) {
+            if(v == N) continue;
+            path.resize(hld.depth[v] - 1);
+            path.push_back(v);
+            for(auto [w, k]: query[v]) res[w] = path[(int)path.size() - 1 - k];
+        }
         return res;
     }
 };

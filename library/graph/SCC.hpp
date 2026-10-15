@@ -20,13 +20,34 @@ struct SCC {
         void dfs(int idx) {
             if(used[idx]) return;
             used[idx] = true;
-            for(auto to:g[idx]) dfs(int(to));
-            order.push_back(idx);
+            vector<pair<int, size_t>> st{{idx, 0}};
+            while(!st.empty()) {
+                int v = st.back().first;
+                auto &next = st.back().second;
+                if(next == g[v].size()) {
+                    order.push_back(v);
+                    st.pop_back();
+                    continue;
+                }
+                int to = g[v][next++];
+                if(!used[to]) {
+                    used[to] = true;
+                    st.emplace_back(to, 0);
+                }
+            }
         }
         void rdfs(int idx,int cnt) {
             if(comp[idx] != -1) return;
             comp[idx] = cnt;
-            for(int to:rg[idx]) rdfs(to,cnt);
+            vector<int> st{idx};
+            while(!st.empty()) {
+                int v = st.back();
+                st.pop_back();
+                for(int to:rg[v]) if(comp[to] == -1) {
+                    comp[to] = cnt;
+                    st.push_back(to);
+                }
+            }
         }
         void build() {
             for(int i = 0;i < (int)g.size(); i++) dfs(i);
