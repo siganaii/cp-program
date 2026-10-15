@@ -23,9 +23,11 @@ using Edges = vector<Edge<T>>;
 template <typename T>
 using Wgraph = vector<Edges<T>>;
 using Ugraph = vector<vector<int>>;
+// M を省略した場合は木の辺数。空グラフでは入力を消費しない。
 Ugraph uinput(int N, int M = -1, bool is_directed = false, int origin = 1) {
+    assert(N >= 0 && M >= -1 && (N > 0 || M <= 0));
     Ugraph g(N);
-    if (M == -1) M = N - 1;
+    if (M == -1) M = max(0, N - 1);
     while(M--) {
         int a,b;
         cin >> a >> b;
@@ -37,8 +39,9 @@ Ugraph uinput(int N, int M = -1, bool is_directed = false, int origin = 1) {
 }
 template <typename T>
 Wgraph<T> winput(int N, int M = -1, bool is_directed = false,int origin = 1) {
+    assert(N >= 0 && M >= -1 && (N > 0 || M <= 0));
     Wgraph<T> g(N);
-    if (M == -1) M = N - 1;
+    if (M == -1) M = max(0, N - 1);
     while(M--) {
         int a,b;
         T c;
