@@ -3,12 +3,17 @@ template <int mod>
 struct Modint{
     int x;
     Modint():x(0) {}
-    Modint(long long y): x(y >= 0 ? y % mod : (mod - (-y) % mod) % mod) {}
+    Modint(long long y): x(y % mod) {
+        if (x < 0) x += mod;
+    }
     Modint &operator += (const Modint &p) {
-        if((x += p.x) >= mod) x -= mod;
+        // 加算前に判定し、途中の値が int の範囲を超えないようにする。
+        if (x >= mod - p.x) x -= mod - p.x;
+        else x += p.x;
         return *this;}
     Modint &operator -= (const Modint &p) {
-        if ((x += mod - p.x) >= mod) x -= mod;
+        x -= p.x;
+        if (x < 0) x += mod;
         return *this;}
     Modint &operator *= (const Modint &p) {
         x = (int)(1LL * x * p.x % mod);

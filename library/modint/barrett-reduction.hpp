@@ -7,17 +7,21 @@ struct Barrett {
     u64 im;
     Barrett() : m(), im() {}
     Barrett(int n) : m(n), im(u64(-1) / m + 1) {}
+    // quo と quorem の商は i64 に収まることを前提とする。
     constexpr inline i64 quo(u64 n) {
+        if (m == 1) return (i64)n;
         u64 x = u64((__uint128_t(n) * im) >> 64);
         u32 r = n - x * m;
         return m <= r ? x - 1 : x;
     }
     constexpr inline i64 rem(u64 n) {
+        if (m == 1) return 0;
         u64 x = u64((__uint128_t(n) * im) >> 64);
         u32 r = n - x * m;
         return m <= r ? r + m : r;
     }
     constexpr inline pair<i64, int> quorem(u64 n) {
+        if (m == 1) return {(i64)n, 0};
         u64 x = u64((__uint128_t(n) * im) >> 64);
         u32 r = n - x * m;
         if (m <= r) return {x - 1, r + m};

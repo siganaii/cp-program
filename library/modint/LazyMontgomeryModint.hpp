@@ -108,6 +108,7 @@ struct LazyMontgomeryModInt {
         }
         return ret;
     }
+    // 逆元と除算は、mod が素数かつ逆元を求める値が非ゼロであることを前提とする。
     constexpr mint inverse() const {
         return pow(mod - 2);
     }

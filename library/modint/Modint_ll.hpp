@@ -12,8 +12,9 @@ struct Modint {
         : x(y >= 0 ? y % mod : (mod - (-(__int128_t)y) % mod) % mod) {}
 
     constexpr Modint& operator+=(const Modint& p) {
-        x += p.x;
-        if (x >= mod) x -= mod;
+        // 加算前に判定し、途中の値が i64 の範囲を超えないようにする。
+        if (x >= mod - p.x) x -= mod - p.x;
+        else x += p.x;
         return *this;
     }
 
