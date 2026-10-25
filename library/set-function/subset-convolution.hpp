@@ -55,6 +55,7 @@ struct SubsetConvolution {
   }
 
   void prod(vector<fps>& A, const vector<fps>& B) {
+    if (A.empty()) return;
     int n = A.size(), d = __builtin_ctz(n);
     for (int i = 0; i < n; i++) {
       fps c{};
@@ -68,6 +69,7 @@ struct SubsetConvolution {
   }
 
   vector<mint> multiply(const vector<mint>& a, const vector<mint>& b) {
+    if (a.empty() || b.empty()) return {};
     vector<fps> A = lift(a), B = lift(b);
     zeta(A), zeta(B);
     prod(A, B);
