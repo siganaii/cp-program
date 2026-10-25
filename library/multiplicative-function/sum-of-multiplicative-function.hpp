@@ -69,14 +69,19 @@ struct mf_prefix_sum {
     if (hls != 1 && md(M, hls - 1) == sq) hls--;
 
     vector<T> h(s);
-    T inv2 = T{2}.inverse();
+    // x(x+1)/2 は偶数の因子を先に割り、2の逆元がない型・modでも計算する。
+    // 整数型では、途中の演算結果も T に収まることを前提とする。
+    auto initial_sum = [](i64 x) -> T {
+      i64 a = x, b = x + 1;
+      if (a & 1) b /= 2;
+      else a /= 2;
+      return T(a) * T(b) - T(1);
+    };
     for (int i = 1; i < hls; i++) {
-      T x = md(M, i);
-      h[i] = x * (x + 1) * inv2 - 1;
+      h[i] = initial_sum(md(M, i));
     }
     for (int i = 1; i <= sq; i++) {
-      T x = i;
-      h[s - i] = x * (x + 1) / 2 - 1;
+      h[s - i] = initial_sum(i);
     }
 
     for (auto& x : p) {

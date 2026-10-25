@@ -3,12 +3,14 @@
 struct divisor_transform {
     template <typename T>
     static void zeta_transform(vector<T> &a) {
+        if (a.empty()) return;
         int N = a.size() - 1;
         auto sieve = prime_enumerate(N);
         for (auto &p : sieve) for (int k = 1; k * p <= N; ++k) a[k * p] += a[k];
     }
     template <typename T>
     static void mobius_transform(vector<T> &a) {
+        if (a.empty()) return;
         int N = a.size() - 1;
         auto sieve = prime_enumerate(N);
         for (auto &p : sieve) for (int k = N / p; k > 0; --k) a[k * p] -= a[k];
@@ -33,12 +35,14 @@ struct divisor_transform {
 struct multiple_transform {
     template <typename T>
     static void zeta_transform(vector<T> &a) {
+        if (a.empty()) return;
         int N = a.size() - 1;
         auto sieve = prime_enumerate(N);
         for (auto &p : sieve) for (int k = N / p; k > 0; --k) a[k] += a[k * p];
     }
     template <typename T>
     static void mobius_transform(vector<T> &a) {
+        if (a.empty()) return;
         int N = a.size() - 1;
         auto sieve = prime_enumerate(N);
         for (auto &p : sieve) for (int k = 1; k * p <= N; ++k) a[k] -= a[k * p];
