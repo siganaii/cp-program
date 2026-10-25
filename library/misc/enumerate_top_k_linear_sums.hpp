@@ -26,12 +26,13 @@ enumerate_top_k_linear_sums(
         return a.second > b.second;
     });
     if (k == n) {
-        ll sx = 0, sy = 0;
+        // 最終的な合計が収まっていても、途中の部分和は超えることがある。
+        i128 sx = 0, sy = 0;
         for (auto [x, y] : xy) {
             sx += x;
             sy += y;
         }
-        return {{sx, sy}};
+        return {{(ll)sx, (ll)sy}};
     }
     struct Event {
         int i, j;
@@ -64,15 +65,14 @@ enumerate_top_k_linear_sums(
     stable_sort(events.begin(), events.end(), slope_less);
     vector<int> pos(n);
     iota(pos.begin(), pos.end(), 0);
-    ll sx = 0;
-    ll sy = 0;
+    i128 sx = 0;
+    i128 sy = 0;
     for (int i = 0; i < k; ++i) {
         sx += xy[i].first;
         sy += xy[i].second;
     }
     vector<P> result;
-    result.reserve(events.size() + 1);
-    result.emplace_back(sx, sy);
+    result.emplace_back((ll)sx, (ll)sy);
     for (const auto& event : events) {
         int i = event.i;
         int j = event.j;
@@ -84,10 +84,12 @@ enumerate_top_k_linear_sums(
         // 片方だけが上位K個に含まれている場合、
         // 選択集合が i -> j に変化する。
         if (in_i != in_j) {
-            sx += xy[j].first - xy[i].first;
-            sy += xy[j].second - xy[i].second;
-            if (result.back() != P{sx, sy}) {
-                result.emplace_back(sx, sy);
+            // 座標差も long long の範囲を超えうるので、引く前に拡張する。
+            sx += (i128)xy[j].first - xy[i].first;
+            sy += (i128)xy[j].second - xy[i].second;
+            P sum{(ll)sx, (ll)sy};
+            if (result.back() != sum) {
+                result.push_back(sum);
             }
         }
         swap(pos[i], pos[j]);
