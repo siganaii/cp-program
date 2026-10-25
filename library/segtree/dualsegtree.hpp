@@ -66,7 +66,10 @@ public:
         }
     }
     void apply_all(const F& f) {
-        all_apply(1, f);
+        if (n == 0) return;
+        // 木全体が実要素ならO(1)、端にダミー要素がある場合はO(log n)で更新する。
+        if (n == sz) all_apply(1, f);
+        else apply(0, n, f);
     }
     S get(int p) {
         assert(0 <= p && p < n);

@@ -6,7 +6,7 @@ struct segtree {
     vector<T> seg;
     const OP op;
     const T I;
-    segtree(OP _op, const T I_) : N(0), size(0), op(_op), I(I_) {}
+    segtree(OP _op, const T I_) : segtree(0, _op, I_) {}
     explicit segtree(int _N, const OP _op, const T I_) : op(_op), I(I_) { init(_N); }
     explicit segtree(const vector<T> &v, const OP _op, const T I_) : op(_op), I(I_) {
         init(v.size());
