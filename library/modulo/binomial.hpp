@@ -1,10 +1,13 @@
 #pragma once
+#include <limits>
 
+// 素数 mod を前提とする。階乗・逆階乗を参照する添字と MAX は mod 未満とする。
 template <typename T>
 struct Binomial {
   vector<T> f, g, h;
   Binomial(int MAX = 0) {
     assert(T::get_mod() != 0 && "Binomial<mint>()");
+    assert(MAX < T::get_mod());
     f.resize(1, T{1});
     g.resize(1, T{1});
     h.resize(1, T{1});
@@ -12,7 +15,9 @@ struct Binomial {
   }
   void extend() {
     int n = f.size();
-    int m = n * 2;
+    // 倍増で mod に達すると階乗がゼロになり、逆階乗を求められない。
+    int m = min(2LL * n, (long long)T::get_mod());
+    assert(n < m);
     f.resize(m);
     g.resize(m);
     h.resize(m);
@@ -26,18 +31,23 @@ struct Binomial {
   }
   T fac(int i) {
     if (i < 0) return T(0);
+    assert(i < T::get_mod());
     while (i >= (int)f.size()) extend();
     return f[i];
   }
 
   T finv(int i) {
     if (i < 0) return T(0);
+    assert(i < T::get_mod());
     while (i >= (int)g.size()) extend();
     return g[i];
   }
 
   T inv(int i) {
+    // INT_MIN は正負を反転できないため、表を作らず直接逆元を求める。
+    if (i == std::numeric_limits<int>::min()) return T(i).inverse();
     if (i < 0) return -inv(-i);
+    if (i >= T::get_mod()) return T(i).inverse();
     while (i >= (int)h.size()) extend();
     return h[i];
   }
