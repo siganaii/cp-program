@@ -3,6 +3,7 @@ template<typename mint>
 struct NTT{
     static constexpr uint32_t get_pr() {
         uint32_t _mod = mint::get_mod();
+        if (_mod == 2) return 1;
         using u64 = uint64_t;
         u64 ds[32] = {};
         int idx = 0;
@@ -37,13 +38,16 @@ struct NTT{
     static constexpr uint32_t mod = mint::get_mod();
     static constexpr uint32_t pr = get_pr();
     static constexpr int level = __builtin_ctzll(mod - 1);
-    mint dw[level], dy[level];
+    // 長さ4以下では使わない回転係数も、安全に参照できる領域を確保する。
+    mint dw[level > 2 ? level : 3], dy[level > 2 ? level : 3];
     void setwy(int k) {
-        mint w[level],y[level];
+        if (k <= 1) return;
+        mint w[level > 2 ? level : 3],y[level > 2 ? level : 3];
         w[k - 1] = mint(pr).pow((mod - 1) / (1 << k));
         y[k - 1] = w[k - 1].inverse();
         for(int i = k - 2;i > 0; --i) w[i] = w[i+1] * w[i+1],y[i] = y[i+1] * y[i+1];
-        dw[1] = w[1], dy[1] = y[1], dw[2] = w[2], dy[2] = y[2];
+        dw[1] = w[1], dy[1] = y[1];
+        if (k >= 3) dw[2] = w[2], dy[2] = y[2];
         for(int i = 3;i < k;++i) {
             dw[i] = dw[i-1] * y[i-2] * w[i];
             dy[i] = dy[i-1] * w[i-2] * y[i];
@@ -96,7 +100,8 @@ struct NTT{
                     a[j0] = t0p2 + t1p3, a[j0 + v] = t0p2 - t1p3;
                     a[j2] = t0m2 + t1m3, a[j2 + v] = t0m2 - t1m3;
                 }
-                xx *= dw[__builtin_ctzll((jh += 4))];
+                // 最後の組の後には、次の回転係数を参照しない。
+                if ((jh += 4) < u) xx *= dw[__builtin_ctzll(jh)];
             }
             u <<= 2;
             v >>= 2;
@@ -141,7 +146,7 @@ struct NTT{
                     a[j0] = t0p1 + t2p3, a[j2] = (t0p1 - t2p3) * ww;
                     a[j0 + v] = t0m1 + t2m3, a[j2 + v] = (t0m1 - t2m3) * ww;       
                 }
-                xx *= dy[__builtin_ctzll(jh += 4)];
+                if ((jh += 4) < u) xx *= dy[__builtin_ctzll(jh)];
             }
             u >>= 4;
             v <<= 2;
@@ -166,6 +171,7 @@ struct NTT{
         for(auto &x:a) x *= iv;
     }
     vector<mint> multiply(const vector<mint> &a,const vector<mint> &b) {
+        if (a.empty() || b.empty()) return {};
         int l = a.size() + b.size() - 1;
         if(min<int>(a.size(),b.size()) <= 40) {
             vector<mint> s(l);
@@ -188,6 +194,7 @@ struct NTT{
         return s;
     }
     void ntt_doubling(vector<mint> &a) {
+        if (a.empty()) return;
         int M = (int)a.size();
         auto b = a;
         intt(b);

@@ -19,6 +19,7 @@ constexpr i64 w2 = i64(m0) * m1;
 
 template <typename T, typename submint>
 vector<submint> mul(const vector<T> &a, const vector<T> &b) {
+    if (a.empty() || b.empty()) return {};
     static NTT<submint> ntt;
     vector<submint> s(a.size()), t(b.size());
     for (int i = 0; i < (int)a.size(); ++i) s[i] = i64(a[i] % submint::get_mod());
@@ -28,9 +29,20 @@ vector<submint> mul(const vector<T> &a, const vector<T> &b) {
 
 template <typename T>
 vector<int> multiply(const vector<T> &s, const vector<T> &t, int mod) {
-    auto d0 = mul<T, mint0>(s, t);
-    auto d1 = mul<T, mint1>(s, t);
-    auto d2 = mul<T, mint2>(s, t);
+    if (s.empty() || t.empty()) return {};
+    // 指定されたmodで先に正規化し、負数や大きな係数もCRTで正しく復元する。
+    vector<int> a(s.size()), b(t.size());
+    for (int i = 0; i < (int)s.size(); ++i) {
+        a[i] = s[i] % mod;
+        if (a[i] < 0) a[i] += mod;
+    }
+    for (int i = 0; i < (int)t.size(); ++i) {
+        b[i] = t[i] % mod;
+        if (b[i] < 0) b[i] += mod;
+    }
+    auto d0 = mul<int, mint0>(a, b);
+    auto d1 = mul<int, mint1>(a, b);
+    auto d2 = mul<int, mint2>(a, b);
     int n = d0.size();
     vector<int> ret(n);
     const int W1 = w1 % mod;
@@ -46,7 +58,7 @@ vector<int> multiply(const vector<T> &s, const vector<T> &t, int mod) {
 
 template <typename mint>
 vector<mint> multiply(const vector<mint> &a, const vector<mint> &b) {
-    if (a.size() == 0 && b.size() == 0) return {};
+    if (a.empty() || b.empty()) return {};
     if (min<int>(a.size(), b.size()) < 128) {
         vector<mint> ret(a.size() + b.size() - 1);
         for (int i = 0; i < (int)a.size(); ++i)
@@ -62,13 +74,16 @@ vector<mint> multiply(const vector<mint> &a, const vector<mint> &b) {
     return ret;
 }
 
+// 入力は非負整数とし、各出力係数はu128に収まることを前提とする。
+// 両入力の長さが128以上のNTT経路では、さらに各出力係数が
+// m0*m1*m2 = 59501818244292734739283969 未満、変換長が2^24以下であることが必要。
 template <typename T>
 vector<u128> multiply_u128(const vector<T> &s, const vector<T> &t) {
-    if (s.size() == 0 && t.size() == 0) return {};
+    if (s.empty() || t.empty()) return {};
     if (min<int>(s.size(), t.size()) < 128) {
         vector<u128> ret(s.size() + t.size() - 1);
         for (int i = 0; i < (int)s.size(); ++i)
-        for (int j = 0; j < (int)t.size(); ++j) ret[i + j] += i64(s[i]) * t[j];
+        for (int j = 0; j < (int)t.size(); ++j) ret[i + j] += u128(s[i]) * u128(t[j]);
         return ret;
     }
     auto d0 = mul<T, mint0>(s, t);
