@@ -5,6 +5,7 @@ static inline i64 my_div(i64 n, i64 p) { return double(n) / p; };
 
 __attribute__((target("avx2"), optimize("O3", "unroll-loops"))) i64
 prime_counting(i64 N) {
+  if (N < 2) return 0;
   i64 N2 = sqrt(N);
   i64 NdN2 = my_div(N, N2);
 
@@ -31,4 +32,4 @@ prime_counting(i64 N) {
   return hl[1];
 }
 
-} 
+}

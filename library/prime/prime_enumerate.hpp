@@ -1,5 +1,6 @@
 #pragma once
 vector<int> prime_enumerate(int N) {
+    if (N < 2) return {};
     vector<bool> sieve(N / 3 + 1, 1);
     for (int p = 5, d = 4, i = 1, sqn = sqrt(N); p <= sqn; p += d = 6 - d, i++) {
         if (!sieve[i]) continue;

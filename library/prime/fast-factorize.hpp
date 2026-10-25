@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <limits>
 #include <numeric>
 #include <type_traits>
 namespace internal {
@@ -79,7 +80,7 @@ pair<T, T> inv_gcd(T a, T p) {
 }
 
 // 返り値 : a^{-1} mod p
-// gcd(a, p) != 1 が必要
+// gcd(a, p) == 1 が必要
 template <typename T>
 T inv(T a, T p) {
   static_assert(is_broadly_signed_v<T>);
@@ -182,21 +183,25 @@ u64 rng() {
 // [l, r]
 i64 rng(i64 l, i64 r) {
   assert(l <= r);
-  return l + rng() % u64(r - l + 1);
+  u64 width = u64(r) - u64(l) + 1;
+  // 符号付き64bit全域では区間幅が2^64となり、widthは0になる。
+  u64 offset = width == 0 ? rng() : rng() % width;
+  return i64(__int128_t(l) + offset);
 }
 
 // [l, r)
 i64 randint(i64 l, i64 r) {
   assert(l < r);
-  return l + rng() % u64(r - l);
+  u64 width = u64(r) - u64(l);
+  return i64(__int128_t(l) + rng() % width);
 }
 
-// choose n numbers from [l, r) without overlapping
+// [l, r) から重複なくn個の整数を選ぶ。
 vector<i64> randset(i64 l, i64 r, i64 n) {
-  assert(l <= r && n <= r - l);
+  assert(l <= r && n >= 0 && u64(n) <= u64(r) - u64(l));
   unordered_set<i64> s;
   for (i64 i = n; i; --i) {
-    i64 m = randint(l, r + 1 - i);
+    i64 m = randint(l, r - i + 1);
     if (s.find(m) != s.end()) m = r - i;
     s.insert(m);
   }
@@ -443,7 +448,39 @@ T pollard_rho(T n) {
 
 using i64 = long long;
 
+// Montgomery乗算の範囲外では128bitの積を使う。2 <= n <= LLONG_MAX を前提とする。
+u64 pollard_rho_u64(u64 n) {
+  if (n % 2 == 0) return 2;
+  if (is_prime(n)) return n;
+  while (true) {
+    u64 c = rng() % (n - 2) + 2, y = rng() % (n - 2) + 2;
+    auto f = [&](u64 x) { return u64((__uint128_t(x) * x + c) % n); };
+    auto diff = [](u64 a, u64 b) { return a >= b ? a - b : b - a; };
+    u64 x = 0, ys = 0, q = 1, g = 1;
+    constexpr u64 block = 128;
+    for (u64 r = 1; g == 1; r <<= 1) {
+      x = y;
+      for (u64 i = 0; i < r; ++i) y = f(y);
+      for (u64 k = 0; k < r && g == 1; k += block) {
+        ys = y;
+        for (u64 i = 0; i < block && i < r - k; ++i) {
+          y = f(y);
+          q = __uint128_t(q) * diff(x, y) % n;
+        }
+        g = gcd(q, n);
+      }
+    }
+    if (g == n) {
+      do { ys = f(ys); g = gcd(diff(x, ys), n); } while (g == 1);
+    }
+    if (g != n) return g;
+  }
+}
+
+// factorize・factor_count・divisors の入力は0以上LLONG_MAX以下とする。
+// 素因数・約数の返り値はlong longのため、この範囲に制限する。
 vector<i64> inner_factorize(u64 n) {
+  assert(n <= u64(std::numeric_limits<i64>::max()));
   using mint32 = ArbitraryLazyMontgomeryModInt<452288976>;
   using mint64 = ArbitraryLazyMontgomeryModInt64bit<401243123>;
 
@@ -454,7 +491,7 @@ vector<i64> inner_factorize(u64 n) {
   } else if (n <= (1LL << 62)) {
     p = pollard_rho<mint64, uint64_t>(n);
   } else {
-    exit(1);
+    p = pollard_rho_u64(n);
   }
   if (p == n) return {i64(p)};
   auto l = inner_factorize(p);
