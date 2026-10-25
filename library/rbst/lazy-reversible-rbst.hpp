@@ -79,6 +79,7 @@ struct LazyReversibleRBST : RBSTBase<LazyReversibleRBSTNode<T, E>> {
   }
 
   void propagate(Ptr t, const E &x) {
+    if (!t) return;
     t->lazy = h(t->lazy, x);
     t->key = g(t->key, x);
     t->sum = g(t->sum, x);

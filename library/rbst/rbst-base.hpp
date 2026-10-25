@@ -51,6 +51,7 @@ struct RBSTBase {
   }
 
   Ptr build(int l, int r, const vector<decltype(Node::key)> &v) {
+    if (l == r) return nullptr;
     if (l + 1 == r) return my_new(v[l]);
     int m = (l + r) >> 1;
     Ptr pm = my_new(v[m]);
