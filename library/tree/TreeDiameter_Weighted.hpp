@@ -1,5 +1,6 @@
 #pragma once
 #include "library/graph/graph-template.hpp"
+// 辺の重みは非負で、経路の重みの和が T に収まることを前提とする。
 template<typename T>
 struct TreeDiameter_Weighted {
     private:
@@ -23,6 +24,7 @@ struct TreeDiameter_Weighted {
     T distance;
     TreeDiameter_Weighted(Wgraph<T> &_g):g(_g){build();}
     void build() {
+        path.clear();
         to.assign(g.size(),-1);
         pair<T,int> p = dfs(0,-1);
         pair<T,int> q = dfs(p.second,-1);

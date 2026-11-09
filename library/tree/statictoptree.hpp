@@ -37,7 +37,13 @@ struct StaticTopTreeVertexBased {
 
   StaticTopTreeVertexBased(const HLD<G>& _hld) : hld(_hld) {
     root = hld.root;
-    g = rooted_tree(hld.g, root);
+    // 辺の重みは使わず、HLD の隣接順を保って頂点番号だけを取り出す。
+    g.resize(hld.g.size());
+    for (int i = 0; i < (int)g.size(); ++i) {
+      for (int dst : hld.g[i]) {
+        if (dst != hld.par[i]) g[i].push_back(dst);
+      }
+    }
     int n = g.size();
     P.resize(n, -1), L.resize(n, -1), R.resize(n, -1);
     T.resize(n, Type::Vertex);

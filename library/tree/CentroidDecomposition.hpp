@@ -13,7 +13,9 @@ struct CentroidDecomposition {
         if (isbuild) build();
     }
     void build() {
-        tree.resize(g.size());
+        tree.assign(g.size(), {});
+        sub.assign(g.size(), 0);
+        v.assign(g.size(), false);
         root = build_dfs(0);
     }
     int get_size(int cur, int par) {

@@ -62,7 +62,7 @@ struct Tree {
         copy(begin(suf), end(suf), back_inserter(pre));
         return pre;
     }
-    int lca(int u, int v) {
+    int lca(int u, int v) const {
         if (dp[u] != dp[v]) {
             if (dp[u] > dp[v]) swap(u, v);
             v = kth_ancestor(v, dp[v] - dp[u]);

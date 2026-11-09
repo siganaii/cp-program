@@ -14,7 +14,6 @@ struct RootedTreeHash {
 	RootedTreeHash(const G& _g, int root = 0) : g(_g), n(g.size()) {
 		hash.resize(n);
 		depth.resize(n, 0);
-		while ((int)xs().size() <= n) xs().push_back(Hash::get_basis());
 		dfs(root, -1);
 	}
 	private:
@@ -23,6 +22,8 @@ struct RootedTreeHash {
 		for (auto& d : g[c]) {
 			if (d != p) dep = max(dep, dfs(d, c) + 1);
 		}
+		// 必要になった高さの乱数だけを生成し、別の木でも共有する。
+		while ((int)xs().size() <= dep) xs().push_back(Hash::get_basis());
 		Hash x = xs()[dep], h = Hash::set(1);
 		for (auto& d : g[c]) {
 			if (d != p) h = h * (x + hash[d]);

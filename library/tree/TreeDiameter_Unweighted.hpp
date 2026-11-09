@@ -22,6 +22,7 @@ struct TreeDiameter_Unweighted {
     int distance;
     TreeDiameter_Unweighted(G &_g):g(_g){build();}
     void build() {
+        path.clear();
         to.assign(g.size(),-1);
         pair<int,int> p = dfs(0,-1);
         pair<int,int> q = dfs(p.second,-1);
