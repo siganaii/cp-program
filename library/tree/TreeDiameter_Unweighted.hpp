@@ -5,14 +5,18 @@ struct TreeDiameter_Unweighted {
     G &g;
     vector<int> to;
     pair<int,int> dfs(int cur,int par) {
+        // 親を記録しながら反復探索し、最遠頂点を求める。
         pair<int,int> ret(0,cur);
-        for(auto &ch : g[cur]) {
-            if(ch == par) continue;
-            pair<int,int> cost = dfs(ch,cur);
-            cost.first++;
-            if(ret < cost) {
-                ret = cost;
-                to[cur] = ch;
+        vector<pair<int,int>> stack{{cur, 0}};
+        to[cur] = par;
+        while (!stack.empty()) {
+            auto [u, dist] = stack.back();
+            stack.pop_back();
+            ret = max(ret, make_pair(dist, u));
+            for (auto &ch : g[u]) {
+                if (ch == to[u]) continue;
+                to[ch] = u;
+                stack.emplace_back(ch, dist + 1);
             }
         }
         return ret;
@@ -24,14 +28,12 @@ struct TreeDiameter_Unweighted {
     void build() {
         path.clear();
         to.assign(g.size(),-1);
+        distance = 0;
+        if (g.empty()) return;
         pair<int,int> p = dfs(0,-1);
         pair<int,int> q = dfs(p.second,-1);
         distance = q.first;
-        int cur = p.second;
-        path.emplace_back(cur);
-        while(cur != q.second) {
-            path.emplace_back(to[cur]);
-            cur = to[cur];
-        }
+        for (int cur = q.second; cur != -1; cur = to[cur]) path.push_back(cur);
+        reverse(path.begin(), path.end());
     }
 };

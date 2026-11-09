@@ -2,6 +2,7 @@
 template <typename G>
 vector<int> centroid(const G &g) {
   const int N = (int)g.size();
+  if (N == 0) return {};
 
   vector<pair<int, int> > st;
   st.emplace_back(0, -1);

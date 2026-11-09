@@ -11,17 +11,24 @@ struct Tree {
         bl.resize(g.size());
         dp.resize(g.size());
         for (auto &v:bl) fill(begin(v),end(v),-1);
+        if (g.empty()) return;
         dfs(root, -1, 0);
     }
     void dfs(int c, int p, int _dp) {
         dp[c] = _dp;
-        for (int i = p, x = 0; i != -1;) {
-            bl[c][x] = i;
-            i = bl[i][x], x++;
-        }
-        for (auto& d : g[c]) {
-            if (d == p) continue;
-            dfs(d, c, _dp + 1);
+        vector<pair<int, int>> stack{{c, p}};
+        while (!stack.empty()) {
+            auto [u, par] = stack.back();
+            stack.pop_back();
+            for (int i = par, x = 0; i != -1;) {
+                bl[u][x] = i;
+                i = bl[i][x], x++;
+            }
+            for (int d : g[u]) {
+                if (d == par) continue;
+                dp[d] = dp[u] + 1;
+                stack.emplace_back(d, u);
+            }
         }
     }
     public:
@@ -29,7 +36,7 @@ struct Tree {
     int depth(int u) const { return dp[u]; }
     int par(int u) const { return u == root ? -1 : bl[u][0]; }
     int kth_ancestor(int u, int k) const {
-        if (dp[u] < k) return -1;
+        if (k < 0 || dp[u] < k) return -1;
         while (k) {
         int t = __builtin_ctz(k);
         u = bl[u][t], k ^= 1 << t;
@@ -76,6 +83,7 @@ struct Tree {
     }
     //st-gl間より長い距離をjumpしようとすると-1が返ってくる
     int jump(int st,int gl,int distance) const {
+        if (distance < 0) return -1;
         int ancestor = lca(st,gl);
         int path_distance = dp[st] + dp[gl] - 2 * dp[ancestor];
         if(path_distance < distance) return -1;
