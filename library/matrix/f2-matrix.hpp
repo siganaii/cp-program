@@ -29,9 +29,32 @@ struct F2_Matrix {
     // (AND, OR) 半環には operator/ を割り当てた
     Mat &operator*=(const Mat &B) {
         Mat C(H, B.W);
-        for (int i = 0; i < H; i++) {
-            for (int j = 0; j < W; j++) {
-                if (A[i][j]) C[i] ^= B[j];
+        bool use_table = false;
+        if (H >= 256 && W >= 64 && W_MAX >= 128) {
+            size_t ones = 0;
+            for (int i = 0; i < H; ++i) ones += A[i].count();
+            // 前計算と各行への適用を含め、XOR 回数を十分減らせる場合だけ使う。
+            use_table = ones > (size_t(H) + 255) * ((W + 7) / 8) * 2;
+        }
+        if (use_table) {
+            // 8 行の XOR の全組み合わせを用意し、8 ビット分を一度に処理する。
+            vector<bitset<W_MAX>> table(256);
+            for (int k = 0; k < W; k += 8) {
+                int len = min(8, W - k);
+                for (unsigned mask = 1; mask < (1u << len); ++mask) {
+                    table[mask] = table[mask & (mask - 1)] ^ B[k + __builtin_ctz(mask)];
+                }
+                for (int i = 0; i < H; ++i) {
+                    unsigned mask = 0;
+                    for (int j = 0; j < len; ++j) mask |= unsigned(A[i][k + j]) << j;
+                    if (mask) C[i] ^= table[mask];
+                }
+            }
+        } else {
+            for (int i = 0; i < H; i++) {
+                for (int j = 0; j < W; j++) {
+                    if (A[i][j]) C[i] ^= B[j];
+                }
             }
         }
         swap(A, C.A);

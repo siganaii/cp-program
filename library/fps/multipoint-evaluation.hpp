@@ -108,6 +108,13 @@ template <typename mint>
 vector<mint> MultipointEvaluation(const FormalPowerSeries<mint> &f,
                                   const vector<mint> &xs) {
   if(f.empty() || xs.empty()) return vector<mint>(xs.size(), mint(0));
+  // 低次数では各点を直接評価し、積木の構築を省く。
+  if (f.size() <= 64) {
+    vector<mint> ret;
+    ret.reserve(xs.size());
+    for (const auto &x : xs) ret.push_back(f.eval(x));
+    return ret;
+  }
   return InnerMultipointEvaluation(f, xs, ProductTree<mint>(xs));
 }
 
