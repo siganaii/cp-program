@@ -41,7 +41,7 @@ struct RollingHash {
         return pfma(a, basis.pow(bsize), b);
     }
     int find(Str &T, int lower = 0) const {
-        auto ths = get_Hash(T);
+        auto ths = get_hash(T);
         for(int i = lower; i <= s -(int)T.size();i++) {
             if(ths == get(i,i + (int)T.size())) return i;
         }  
