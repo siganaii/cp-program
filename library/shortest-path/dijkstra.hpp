@@ -1,5 +1,8 @@
 #pragma once
+#include <limits>
 #include "library/graph/graph-template.hpp"
+// 辺の重みは非負。整数型では最短距離が T に収まることを前提とする。
+// 未到達は T(-1) で表すため、符号なし整数型では最大値を距離に使えない。
 template <typename T>
 vector<T> dijkstra(Wgraph<T> &g,int start = 0) {
     int N = (int)g.size();
@@ -14,8 +17,14 @@ vector<T> dijkstra(Wgraph<T> &g,int start = 0) {
         int now = p.second;
         if (d[now] < p.first) continue;
         for (auto nex: g[now]) {
-            if (d[nex] == T(-1) || d[nex] > d[now] + nex.cost) {
-                d[nex] = d[now] + nex.cost;
+            // 型の範囲を超える遠回りの候補は加算しない。
+            if constexpr (numeric_limits<T>::is_integer) {
+                if (nex.cost > numeric_limits<T>::max() - d[now]) continue;
+            }
+            T nd = d[now] + nex.cost;
+            if (nd == T(-1)) continue;
+            if (d[nex] == T(-1) || d[nex] > nd) {
+                d[nex] = nd;
                 pq.emplace(d[nex],nex); 
             }
         }
@@ -25,35 +34,29 @@ vector<T> dijkstra(Wgraph<T> &g,int start = 0) {
 template <typename T>
 vector<int> restore_shortest_path(Wgraph<T> &g,vector<T> &dist,int start,int goal) {
     vector<int> res;
-    if (start == goal) {
-        res.push_back(start);
-        return res;
-    }
+    if (dist[goal] == T(-1)) return res;
     int N = g.size();
-    Wgraph<T> rg(N);
-    for (int i = 0;i < N;i++) {
-        for (auto &edge:g[i]) rg[edge.to].emplace_back(edge.to,i,edge.cost);
-    }
-
-    res.push_back(goal);
-    int p = goal;
-    T dd = dist[goal];
-    vector<int> vis(N);
-    vis[goal] = 1;
-    const T INF = numeric_limits<T>::max() / 2;
-    while(p != start) {
-        int nex = -1;
-        T nval = INF;
-        for(auto &edge:rg[p]) {
-            if (vis[edge] || dist[edge] + edge.cost != dd) continue;
-            if (dist[edge] != -1 && dist[edge] < nval) {
-                nval = dist[edge];
-                nex = edge;
-                break;
+    // 最短距離を満たす辺を幅優先探索し、重み 0 の閉路でも復元できるようにする。
+    vector<int> prev(N, -1);
+    queue<int> q;
+    prev[start] = start;
+    q.push(start);
+    while (!q.empty() && prev[goal] == -1) {
+        int now = q.front();
+        q.pop();
+        for (auto &edge : g[now]) {
+            if (prev[edge.to] != -1 || dist[edge.to] == T(-1)) continue;
+            if constexpr (numeric_limits<T>::is_integer) {
+                if (edge.cost > numeric_limits<T>::max() - dist[now]) continue;
             }
+            if (dist[now] + edge.cost != dist[edge.to]) continue;
+            prev[edge.to] = now;
+            q.push(edge.to);
         }
-        res.push_back((vis[nex] = 1,dd = nval, p = nex));
     }
+    if (prev[goal] == -1) return res;
+    for (int p = goal; p != start; p = prev[p]) res.push_back(p);
+    res.push_back(start);
     reverse(begin(res),end(res));
     return res;
 };
