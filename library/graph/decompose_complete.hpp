@@ -65,5 +65,5 @@ pair<vector<vector<int>>, vector<int>> to_cycles_and_matching(ll N) {
         match[2 * i] = i, match[2 * i + 1] = j;
     }
     match[N - 2] = N - 2, match[N - 1] = N - 1;
-    return {cycles, match};
+    return {move(cycles), move(match)};
 }

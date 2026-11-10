@@ -26,5 +26,5 @@ pair<vector<vector<int>>,int> CartesianTree(vector<T> &a,bool is_min) {
         if (p[i] != -1) g[p[i]].push_back(i);
         else root = i;
     }
-    return make_pair(g, root);
+    return make_pair(move(g), root);
 }

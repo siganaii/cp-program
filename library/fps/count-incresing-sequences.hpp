@@ -16,7 +16,7 @@ pair<vector<mint>, vector<mint>> count_square(vector<mint> L, vector<mint> D,Bin
             R[i] = D.back();
         }
         if (sw) swap(R, D);
-        return {R, D};
+        return {move(R), move(D)};
     }
     static NTT<mint> ntt;
     auto cyclic_convolution = [&](vector<mint> f,vector<mint> g) {
@@ -42,7 +42,7 @@ pair<vector<mint>, vector<mint>> count_square(vector<mint> L, vector<mint> D,Bin
         for (int i = 0; i < N; i++) L[i] *= C.finv(N - 1 - i);
         for (int i = 0; i < N + M - 1; i++) tmp[i] = C.fac(i);
         L.resize(1 << z,0);
-        tmp = cyclic_convolution(tmp,L);
+        tmp = cyclic_convolution(move(tmp), move(L));
         for (int i = 0; i < M; i++) U[i] += tmp[N - 1 + i] * C.finv(i);
     }
     // 下から上
@@ -58,10 +58,10 @@ pair<vector<mint>, vector<mint>> count_square(vector<mint> L, vector<mint> D,Bin
         for (int i = 0; i < M; i++) D[i] *= C.finv(M - i - 1);
         for (int i = 0; i < N + M - 1; i++) tmp[i] = C.fac(i);
         D.resize(1 << z,0);
-        tmp = cyclic_convolution(tmp, D);
+        tmp = cyclic_convolution(move(tmp), move(D));
         for (int i = 0; i < N; i++) R[i] += tmp[M - 1 + i] * C.finv(i);
     }
-    return {R, U};
+    return {move(R), move(U)};
 }
 template<class mint>
 /*
@@ -107,13 +107,13 @@ vector<mint> count_increase_sequences_with_upper_bounds(Binomial<mint> &BC, vect
     }
     vector<mint> res;
     res.reserve(A.back());
-    auto L = count_increase_sequences_with_upper_bounds(BC,LA,LC);
+    auto L = count_increase_sequences_with_upper_bounds(BC,move(LA),move(LC));
     if (!L.empty()){
-        auto [R, U] = count_square(L,RC,BC);
+        auto [R, U] = count_square(move(L),move(RC),BC);
         for (int i = 0; i < (int)R.size(); i++) res.push_back(R[i]);
         swap(U, RC);
     }
-    auto R = count_increase_sequences_with_upper_bounds(BC,RA,RC);
+    auto R = count_increase_sequences_with_upper_bounds(BC,move(RA),move(RC));
     for (auto x : R) res.push_back(x);
     return res;
 }
@@ -168,12 +168,12 @@ vector<mint> count_increase_sequences_with_upper_lower_bounds(Binomial<mint> &BC
             tmp[A[i] - A[l]]++;
         }
         for (int i = 1; i < B[l] - A[l]; i++) tmp[i] += tmp[i - 1];
-        auto X = count_increase_sequences_with_upper_bounds(BC,tmp,C);
+        auto X = count_increase_sequences_with_upper_bounds(BC,move(tmp),C);
         vector<int> nB(nl - l + 1);
         for (int i = l; i <= nl; i++){
             nB[i - l] = B[i] - B[l];
         }
-        auto Y = count_increase_sequences_with_upper_bounds(BC,nB,X);
+        auto Y = count_increase_sequences_with_upper_bounds(BC,move(nB),move(X));
         C.resize(B[nl] - A[nl]);
         for (int i = 0; i < B[nl] - A[nl]; i++){
             C[i] = Y[i + A[nl] - B[l]];
@@ -201,16 +201,16 @@ vector<mint> count_increase_sequences_with_upper_lower_bounds(Binomial<mint> &BC
         for (int i = 1; i < (int)tmp.size(); i++){
             tmp[i] += tmp[i - 1];
         }
-        auto nD = count_increase_sequences_with_upper_bounds(BC,tmp,L);
+        auto nD = count_increase_sequences_with_upper_bounds(BC,move(tmp),move(L));
         for (int i = 0; i < (int)nD.size(); i++) D[i] = nD[i];
     }
     for (int i = A.back(); i < B[l]; i++) C[i - A.back()] = C[i];
     C.resize(B[l] - A.back());
-    auto [R, U] = count_square(C,D,BC);
+    auto [R, U] = count_square(move(C),move(D),BC);
     auto out = copy(R.begin(), R.end(), res.begin() + offset);
     vector<int> nB(N - l);
     for (int i = 0; i < N - l; i++) nB[i] = B[i + l] - B[l];
-    R = count_increase_sequences_with_upper_bounds(BC,nB,U);
+    R = count_increase_sequences_with_upper_bounds(BC,move(nB),move(U));
     copy(R.begin(), R.end(), out);
     return res;
 }

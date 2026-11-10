@@ -88,6 +88,6 @@ struct EulerianTrail {
         if(ord_edge.size() != M) {
             return {{},{}};
         }
-        return {ord_vertex,ord_edge};
+        return {move(ord_vertex), move(ord_edge)};
     }   
 };

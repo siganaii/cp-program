@@ -62,10 +62,10 @@ struct MatrixArray {
         A.swap(B.A);
         return (*this);
     }
-    MatrixArray operator+(const MatrixArray &B) const{return (MatrixArray(*this) += B);}
-    MatrixArray operator-(const MatrixArray &B) const{return (MatrixArray(*this) -= B);}
-    MatrixArray operator*(const MatrixArray &B) const{return (MatrixArray(*this) *= B);}
-    MatrixArray operator^(const long long k) const{return (MatrixArray(*this) ^= k);}
+    MatrixArray operator+(const MatrixArray &B) const{MatrixArray ret(*this); ret += B; return ret;}
+    MatrixArray operator-(const MatrixArray &B) const{MatrixArray ret(*this); ret -= B; return ret;}
+    MatrixArray operator*(const MatrixArray &B) const{MatrixArray ret(*this); ret *= B; return ret;}
+    MatrixArray operator^(const long long k) const{MatrixArray ret(*this); ret ^= k; return ret;}
     bool operator==(const MatrixArray &B) const {
         for(int i = 0;i < H;i++) {
             for(int j = 0;j < W;j++) {

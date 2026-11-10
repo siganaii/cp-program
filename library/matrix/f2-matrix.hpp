@@ -61,7 +61,7 @@ struct F2_Matrix {
         W = B.W;
         return *this;
     }
-    Mat operator*(const Mat &B) const { return Mat(*this) *= B; }
+    Mat operator*(const Mat &B) const { Mat ret(*this); ret *= B; return ret; }
     // (AND, OR) 半環
     friend Mat and_or_product(const Mat &A, const Mat &B) {
         Mat C(A.H, B.W);

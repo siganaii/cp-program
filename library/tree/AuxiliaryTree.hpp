@@ -29,6 +29,6 @@ struct AuxiliaryTree {
       aux[rs.back()].push_back(i);
       rs.push_back(i);
     }
-    return make_pair(aux, ps);
+    return make_pair(move(aux), move(ps));
   }
 };
