@@ -57,7 +57,7 @@ FormalPowerSeries<mint> FormalPowerSeries<mint>::inv(int deg) const {
         f.intt();
         for (int j = d; j < min(2 * d, deg); j++) res[j] = -f[j];
     }
-    return res.pre(deg);
+    return res;
 }
 template <typename mint>
 FormalPowerSeries<mint> FormalPowerSeries<mint>::exp(int deg) const {
@@ -126,5 +126,6 @@ FormalPowerSeries<mint> FormalPowerSeries<mint>::exp(int deg) const {
         x.intt();
         b.insert(end(b), begin(x) + m, end(x));
     }
-    return fps{begin(b), begin(b) + deg};
+    b.resize(deg);
+    return b;
 }

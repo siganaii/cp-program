@@ -62,14 +62,14 @@ struct FormalPowerSeries : vector<mint> {
         shrink();
         return *this;
     }
-    FPS operator+(const FPS &r) const { return FPS(*this) += r; }
-    FPS operator+(const mint &v) const { return FPS(*this) += v; }
-    FPS operator-(const FPS &r) const { return FPS(*this) -= r; }
-    FPS operator-(const mint &v) const { return FPS(*this) -= v; }
-    FPS operator*(const FPS &r) const { return FPS(*this) *= r; }
-    FPS operator*(const mint &v) const { return FPS(*this) *= v; }
-    FPS operator/(const FPS &r) const { return FPS(*this) /= r; }
-    FPS operator%(const FPS &r) const { return FPS(*this) %= r; }
+    FPS operator+(const FPS &r) const { FPS ret(*this); ret += r; return ret; }
+    FPS operator+(const mint &v) const { FPS ret(*this); ret += v; return ret; }
+    FPS operator-(const FPS &r) const { FPS ret(*this); ret -= r; return ret; }
+    FPS operator-(const mint &v) const { FPS ret(*this); ret -= v; return ret; }
+    FPS operator*(const FPS &r) const { FPS ret(*this); ret *= r; return ret; }
+    FPS operator*(const mint &v) const { FPS ret(*this); ret *= v; return ret; }
+    FPS operator/(const FPS &r) const { FPS ret(*this); ret /= r; return ret; }
+    FPS operator%(const FPS &r) const { FPS ret(*this); ret %= r; return ret; }
     FPS operator-() const {
         FPS ret(this->size());
         for (int i = 0; i < (int)this->size(); i++) ret[i] = -(*this)[i];

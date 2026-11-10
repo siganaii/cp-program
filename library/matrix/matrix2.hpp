@@ -72,13 +72,13 @@ struct Matrix {
         return (*this);
     }
 
-    Matrix operator+(const Matrix &B) const { return (Matrix(*this) += B); }
+    Matrix operator+(const Matrix &B) const { Matrix ret(*this); ret += B; return ret; }
 
     //Matrix operator-(const Matrix &B) const { return (Matrix(*this) -= B); }
 
-    Matrix operator*(const Matrix &B) const { return (Matrix(*this) *= B); }
+    Matrix operator*(const Matrix &B) const { Matrix ret(*this); ret *= B; return ret; }
 
-    Matrix operator^(const long long k) const { return (Matrix(*this) ^= k); }
+    Matrix operator^(const long long k) const { Matrix ret(*this); ret ^= k; return ret; }
 
     bool operator==(const Matrix &B) const {
         if(H() != B.H() || W() != B.W()) return false;
