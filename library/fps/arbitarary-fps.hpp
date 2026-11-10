@@ -34,7 +34,8 @@ FormalPowerSeries<mint>& FormalPowerSeries<mint>::operator*=(
         return *this;
     }
     auto ret = ArbitraryNTT::multiply(*this, r);
-    return *this = FormalPowerSeries<mint>(ret.begin(), ret.end());
+    vector<mint>::operator=(std::move(ret));
+    return *this;
 }
 
 template <typename mint>

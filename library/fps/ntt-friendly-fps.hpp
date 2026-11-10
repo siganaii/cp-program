@@ -13,7 +13,8 @@ FormalPowerSeries<mint>& FormalPowerSeries<mint>::operator*=(const FormalPowerSe
     }
     set_fft();
     auto ret = static_cast<NTT<mint>*>(ntt_ptr)->multiply(*this, r);
-    return *this = FormalPowerSeries<mint>(ret.begin(), ret.end());
+    vector<mint>::operator=(std::move(ret));
+    return *this;
 }
 template <typename mint>
 void FormalPowerSeries<mint>::ntt() {
