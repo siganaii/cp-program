@@ -175,23 +175,32 @@ public:
         assert(s != t);
         assert(0 <= s && s < int(g.size()));
         assert(0 <= t && t < int(g.size()));
-        if (depth[s] >= depth[t]) return par[s];
-        int u = kth_ancestor(t, depth[t] - depth[s] - 1);
-        return par[u] == s ? u : par[s];
+        if (depth[s] >= depth[t] || !in_subtree(t, s)) return par[s];
+        return kth_ancestor(t, depth[t] - depth[s] - 1);
     }
     // s - t 間のパス上の頂点のうち s から距離 d の頂点
     // dist(s, t) < d のとき -1
     int jump(int s, int t, int d) const {
-        int lc = lca(s, t);
-        int d1 = depth[s] - depth[lc];
-        if (d <= d1) {
-            return kth_ancestor(s, d);
+        if (d < 0) return -1;
+        if (d == 0) return s;
+        if (d == 1) return s == t ? -1 : next(s, t);
+        int target = t;
+        // s側を登る途中で目的地に届いたら、LCAまで探索せずに返す。
+        while (nxt[s] != nxt[t]) {
+            if (down[s] > down[t]) {
+                int h = nxt[s], len = depth[s] - depth[h];
+                if (d <= len) return ord[down[s] - d];
+                d -= len + 1;
+                s = par[h];
+                if (d == 0) return s;
+            } else {
+                t = par[nxt[t]];
+            }
         }
-        int d2 = d1 + depth[t] - depth[lc];
-        if (d <= d2) {
-            return kth_ancestor(t, d2 - d);
-        }
-        return -1;
+        int up_len = max(0, depth[s] - depth[t]);
+        if (d <= up_len) return ord[down[s] - d];
+        int remaining = up_len + depth[target] - min(depth[s], depth[t]) - d;
+        return remaining < 0 ? -1 : kth_ancestor(target, remaining);
     }
     vector<int> path(int s, int t) const {
         vector<int> pre, suf;
