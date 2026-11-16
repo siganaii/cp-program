@@ -35,7 +35,7 @@ struct itrB
     do {
       i++;
       if (i == p->cap) break;
-      if (p->occupied_flag[i] && !p->deleted_flag[i]) break;
+      if (p->state[i] == 1) break;
     } while (true);
     return (*this);
   }
@@ -47,7 +47,7 @@ struct itrB
   itrB& operator--() {
     do {
       i--;
-      if (p->occupied_flag[i] && !p->deleted_flag[i]) break;
+      if (p->state[i] == 1) break;
       assert(i != 0 && "itr::operator--()");
     } while (true);
     return (*this);
@@ -132,22 +132,20 @@ struct HashMapBase {
 
   void reallocate(u32 ncap) {
     vector<Data> ndata(ncap);
-    vector<bool> nf(ncap);
+    vector<uint8_t> nf(ncap);
     shift = 64 - __lg(ncap);
     for (u32 i = 0; i < cap; i++) {
-      if (occupied_flag[i] && !deleted_flag[i]) {
+      if (state[i] == 1) {
         u32 h = hash(data[i]);
         while (nf[h]) h = (h + 1) & (ncap - 1);
         ndata[h] = move(data[i]);
-        nf[h] = true;
+        nf[h] = 1;
       }
     }
     data.swap(ndata);
-    occupied_flag.swap(nf);
+    state.swap(nf);
     cap = ncap;
     occupied = s;
-    deleted_flag.resize(cap);
-    fill(std::begin(deleted_flag), std::end(deleted_flag), false);
   }
 
   inline bool extend_rate(u32 x) const { return x * 2 >= cap; }
@@ -163,7 +161,8 @@ struct HashMapBase {
  public:
   u32 cap, s, occupied;
   vector<Data> data;
-  vector<bool> occupied_flag, deleted_flag;
+  // 0: 空、1: 使用中、2: 削除済み
+  vector<uint8_t> state;
   u32 shift;
   static u64 r;
   static constexpr uint32_t HASHMAP_DEFAULT_SIZE = 4;
@@ -173,14 +172,13 @@ struct HashMapBase {
         s(0),
         occupied(0),
         data(cap),
-        occupied_flag(cap),
-        deleted_flag(cap),
+        state(cap),
         shift(64 - __lg(cap)) {}
 
   itr begin() const {
     u32 h = 0;
     while (h != cap) {
-      if (occupied_flag[h] && !deleted_flag[h]) break;
+      if (state[h] == 1) break;
       h++;
     }
     return itr(h, this);
@@ -193,11 +191,8 @@ struct HashMapBase {
   itr find(const Key& key) const {
     u32 h = inner_hash(key);
     while (true) {
-      if (occupied_flag[h] == false) return this->end();
-      if (data_to_key(data[h]) == key) {
-        if (deleted_flag[h] == true) return this->end();
-        return itr(h, this);
-      }
+      if (state[h] == 0) return this->end();
+      if (state[h] != 2 && data_to_key(data[h]) == key) return itr(h, this);
       h = (h + 1) & (cap - 1);
     }
   }
@@ -205,29 +200,26 @@ struct HashMapBase {
   bool contain(const Key& key) const { return find(key) != this->end(); }
 
   itr insert(const Data& d) {
-    u32 h = hash(d);
-    while (true) {
-      if (occupied_flag[h] == false) {
-        if (extend_rate(occupied + 1)) {
-          extend();
-          h = hash(d);
-          continue;
-        }
-        data[h] = d;
-        occupied_flag[h] = true;
-        ++occupied, ++s;
-        return itr(h, this);
-      }
-      if (data_to_key(data[h]) == data_to_key(d)) {
-        if (deleted_flag[h] == true) {
-          data[h] = d;
-          deleted_flag[h] = false;
-          ++s;
-        }
-        return itr(h, this);
-      }
+    u32 h = hash(d), vacant = cap;
+    while (state[h] != 0) {
+      if (state[h] == 2) {
+        if (vacant == cap) vacant = h;
+      } else if (data_to_key(data[h]) == data_to_key(d)) return itr(h, this);
       h = (h + 1) & (cap - 1);
     }
+    if (vacant != cap) h = vacant;
+    else {
+      if (extend_rate(occupied + 1)) {
+        // 削除済み領域が多ければ、容量を増やさず整理する。
+        reallocate((s + 1) * 4 <= cap ? cap : cap << 1);
+        return insert(d);
+      }
+      ++occupied;
+    }
+    data[h] = d;
+    state[h] = 1;
+    ++s;
+    return itr(h, this);
   }
 
   // tips for speed up :
@@ -236,13 +228,13 @@ struct HashMapBase {
     if (it == this->end()) return this->end();
     s--;
     if (!get_next) {
-      this->deleted_flag[it.i] = true;
+      this->state[it.i] = 2;
       if (shrink_rate(s)) shrink();
       return this->end();
     }
     itr nxt = it;
     nxt++;
-    this->deleted_flag[it.i] = true;
+    this->state[it.i] = 2;
     if (shrink_rate(s)) {
       if (nxt == this->end()) {
         shrink();
@@ -255,7 +247,7 @@ struct HashMapBase {
     return nxt;
   }
 
-  itr erase(const Key& key) { return erase(find(key)); }
+  itr erase(const Key& key, bool get_next = true) { return erase(find(key), get_next); }
 
   int count(const Key& key) { return find(key) == end() ? 0 : 1; }
 
@@ -264,8 +256,7 @@ struct HashMapBase {
   int size() const { return s; }
 
   void clear() {
-    fill(std::begin(occupied_flag), std::end(occupied_flag), false);
-    fill(std::begin(deleted_flag), std::end(deleted_flag), false);
+    fill(state.begin(), state.end(), 0);
     s = occupied = 0;
   }
 
@@ -292,30 +283,26 @@ struct HashMap : HashMapImpl::HashMapBase<Key, pair<Key, Val>> {
   using Data = pair<Key, Val>;
 
   Val& operator[](const Key& k) {
-    typename base::u32 h = base::inner_hash(k);
-    while (true) {
-      if (base::occupied_flag[h] == false) {
-        if (base::extend_rate(base::occupied + 1)) {
-          base::extend();
-          h = base::hash(k);
-          continue;
-        }
-        base::data[h].first = k;
-        base::data[h].second = Val();
-        base::occupied_flag[h] = true;
-        ++base::occupied, ++base::s;
-        return base::data[h].second;
-      }
-      if (base::data[h].first == k) {
-        if (base::deleted_flag[h] == true) {
-          base::data[h].second = Val();
-          base::deleted_flag[h] = false;
-          ++base::s;
-        }
-        return base::data[h].second;
-      }
+    typename base::u32 h = base::inner_hash(k), vacant = base::cap;
+    while (base::state[h] != 0) {
+      if (base::state[h] == 2) {
+        if (vacant == base::cap) vacant = h;
+      } else if (base::data[h].first == k) return base::data[h].second;
       h = (h + 1) & (base::cap - 1);
     }
+    if (vacant != base::cap) h = vacant;
+    else {
+      if (base::extend_rate(base::occupied + 1)) {
+        base::reallocate((base::s + 1) * 4 <= base::cap ? base::cap : base::cap << 1);
+        return (*this)[k];
+      }
+      ++base::occupied;
+    }
+    base::data[h].first = k;
+    base::data[h].second = Val();
+    base::state[h] = 1;
+    ++base::s;
+    return base::data[h].second;
   }
 
   typename base::itr emplace(const Key& key, const Val& val) {
