@@ -1,6 +1,4 @@
 #pragma once
-#include <cstdint>
-#include <string_view>
 
 template <size_t X = 26, char margin = 'a'>
 struct Trie {
