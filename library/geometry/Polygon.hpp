@@ -398,33 +398,67 @@ pair<int, int> furthest_pair(const vector<PointBase<T>>& p) {
     return ans;
 }
 
-// 最近点対の距離。2点以上を要求する。
-long double closest_pair(Points ps) {
-    if (ps.size() <= 1) throw(0);
-    sort(ps.begin(), ps.end());
-    auto compare_y = [](const Point& a, const Point& b) {
-        return imag(a) < imag(b);
+// 最近点対の入力時の添字。異なる2点を選ぶ。2点未満なら {-1,-1}。O(N log N)。
+template <typename T = Real>
+pair<int, int> closest_pair(const vector<PointBase<T>>& ps) {
+    if (ps.size() < 2) return {-1, -1};
+    using Coord = conditional_t<is_integral_v<T>, __int128_t, Real>;
+    auto abs_diff = [](T a, T b) {
+        Coord delta = Coord(a) - Coord(b);
+        return delta < 0 ? -delta : delta;
     };
-    vector<Point> buf(ps.size());
-    const Real INF = numeric_limits<Real>::infinity();
-    auto rec = [&](auto& self, int left, int right) -> Real {
-        if (right - left <= 1) return INF;
-        int mid = (left + right) / 2;
-        Real x = real(ps[mid]);
-        Real ret = min(self(self, left, mid), self(self, mid, right));
-        inplace_merge(ps.begin() + left, ps.begin() + mid,
-                      ps.begin() + right, compare_y);
-        int ptr = 0;
-        for (int i = left; i < right; i++) {
-            if (abs(real(ps[i]) - x) >= ret) continue;
-            for (int j = ptr - 1; j >= 0; j--) {
-                Point d = ps[i] - buf[j];
-                if (imag(d) >= ret) break;
-                ret = min(ret, abs(d));
-            }
-            buf[ptr++] = ps[i];
+    auto distance_key = [](Coord dx, Coord dy) {
+        if constexpr (is_integral_v<T>) {
+            static_assert(numeric_limits<T>::digits <= 64);
+            __uint128_t x = dx, y = dy;
+            __uint128_t x2 = x * x, y2 = y * y;
+            __uint128_t sum = x2 + y2;
+            // 64ビット座標の距離の二乗は最大129ビット。桁上がりも比較する。
+            return pair{sum < x2, sum};
+        } else {
+            return hypotl(dx, dy);
         }
-        return ret;
     };
-    return rec(rec, 0, ps.size());
+    vector<int> order(ps.size()), buf(ps.size());
+    iota(order.begin(), order.end(), 0);
+    sort(order.begin(), order.end(), [&](int i, int j) { return ps[i] < ps[j]; });
+    auto compare_y = [&](int i, int j) {
+        return ps[i].y < ps[j].y;
+    };
+    pair<int, int> ans = {0, 1};
+    auto best = distance_key(abs_diff(ps[0].x, ps[1].x), abs_diff(ps[0].y, ps[1].y));
+    auto outside = [&](Coord delta) {
+        if constexpr (is_integral_v<T>) return distance_key(delta, 0) >= best;
+        else return delta >= best;
+    };
+    auto rec = [&](auto& self, int left, int right) -> void {
+        if (right - left <= 1) return;
+        int mid = left + (right - left) / 2;
+        T x = ps[order[mid]].x;
+        self(self, left, mid);
+        self(self, mid, right);
+        merge(order.begin() + left, order.begin() + mid, order.begin() + mid,
+              order.begin() + right, buf.begin(), compare_y);
+        copy_n(buf.begin(), right - left, order.begin() + left);
+
+        // マージ用バッファを、分割線に近い点の添字の記録にも使う。
+        int count = 0;
+        for (int k = left; k < right; k++) {
+            int i = order[k];
+            if (outside(abs_diff(ps[i].x, x))) continue;
+            for (int t = count - 1; t >= 0; t--) {
+                int j = buf[t];
+                Coord dy = abs_diff(ps[i].y, ps[j].y);
+                if (outside(dy)) break;
+                auto d = distance_key(abs_diff(ps[i].x, ps[j].x), dy);
+                if (d < best) {
+                    best = d;
+                    ans = {i, j};
+                }
+            }
+            buf[count++] = i;
+        }
+    };
+    rec(rec, 0, ps.size());
+    return ans;
 }
